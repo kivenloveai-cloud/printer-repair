@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>打印机维修价格咨询</title>
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --surface: #ffffff;
+      --border: #e2e2e5;
+      --primary: #4f46e5;
+      --primary-soft: rgba(79, 70, 229, 0.08);
+      --user-msg: #4f46e5;
+      --bot-msg: #f4f4f5;
+      --text: #1a1a2e;
+      --text-muted: #6b7280;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --radius: 12px;
+      --font: system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    /* 主容器 */
+    .container {
+      width: 100%;
+      max-width: 600px;
+      height: 90vh;
+      min-height: 500px;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    .header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(79, 70, 229, 0.04) 0%, transparent 100%);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header-left h1 { font-size: 1.1rem; font-weight: 600; }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      line-height: 1.6;
+      font-size: 0.9rem;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--user-msg);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.bot {
+      align-self: flex-start;
+      background: var(--bot-msg);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+      color: var(--text);
+    }
+
+    .tag {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+    .tag.price { background: var(--primary-soft); color: var(--primary); }
+    .tag.free { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+    .tag.new { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
+
+    .input-area {
+      padding: 12px 20px 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .input-row { display: flex; gap: 8px; }
+
+    #userInput {
+      flex: 1;
+      min-height: 44px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.9rem;
+      resize: none;
+    }
+    #userInput:focus { outline: none; border-color: var(--primary); }
+
+    #sendBtn {
+      height: 44px;
+      padding: 0 18px;
+      border: none;
+      border-radius: var(--radius);
+      background: var(--primary);
+      color: #fff;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    #sendBtn:hover { background: #5558e3; }
+
+    .quick-asks { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .quick-btn {
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--bg);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .quick-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* 模态框基类（保留，当前页无弹窗） */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      width: 90%;
+      max-width: 550px;
+      max-height: 92vh;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="mainApp">
+    <header class="header">
+      <div class="header-left">
+        <h1>打印机维修报价</h1>
+      </div>
+    </header>
+
+    <div class="messages" id="messages"></div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <textarea id="userInput" rows="1" placeholder="输入序列号、MAC地址或客户编号..."></textarea>
+        <button id="sendBtn">发送</button>
+      </div>
+      <div class="quick-asks">
+        <button class="quick-btn" data-ask="配件价格">配件价格表</button>
+        <button class="quick-btn" data-ask="重新开始">重新查询</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========== Supabase 配置 ==========
+    const SUPABASE_URL = 'https://nthmtpvjucnqfypkgmoz.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50aG10cHZqdWNucWZ5cGtnbW96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0MjMwMjAsImV4cCI6MjA4NTk5OTAyMH0.lG4oOIm2f8w6eglKxx-gGChK1yuEl_8ZgR98051qpNg';
+
+    const supabase = {
+      from(table) {
+        return new SupabaseQuery(table);
+      }
+    };
+    class SupabaseQuery {
+      constructor(table) {
+        this._table = table;
+        this._method = 'GET';
+        this._filters = [];
+        this._selectFields = '*';
+        this._orderStr = '';
+        this._body = null;
+        this._prefer = '';
+      }
+      select(fields) { this._method = 'GET'; if (fields) this._selectFields = fields; return this; }
+      insert(rows) { this._method = 'POST'; this._body = rows; this._prefer = 'return=representation'; return this; }
+      upsert(rows, { onConflict } = {}) { this._method = 'POST'; this._body = Array.isArray(rows) ? rows : [rows]; this._prefer = 'resolution=merge-duplicates,return=representation'; if (onConflict) this._filters.push(`on_conflict=${onConflict}`); return this; }
+      update(data) { this._method = 'PATCH'; this._body = data; this._prefer = 'return=representation'; return this; }
+      delete() { this._method = 'DELETE'; return this; }
+      eq(field, value) { this._filters.push(`${field}=eq.${encodeURIComponent(value)}`); return this; }
+      neq(field, value) { this._filters.push(`${field}=neq.${encodeURIComponent(value)}`); return this; }
+      order(field, opts = {}) { this._orderStr = `order=${field}.${opts.ascending ? 'asc' : 'desc'}`; return this; }
+      async _execute() {
+        let url = `${SUPABASE_URL}/rest/v1/${this._table}`;
+        const parts = [...this._filters];
+        if (this._method === 'GET' && this._selectFields) parts.push(`select=${encodeURIComponent(this._selectFields)}`);
+        if (this._orderStr) parts.push(this._orderStr);
+        if (parts.length) url += '?' + parts.join('&');
+        const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+        if (this._prefer) headers['Prefer'] = this._prefer;
+        const fetchOpts = { method: this._method, headers };
+        if (this._body) fetchOpts.body = JSON.stringify(this._body);
+        try {
+          const resp = await fetch(url, fetchOpts);
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            return { data: null, error: new Error(err.message || `HTTP ${resp.status}`) };
+          }
+          if (resp.status === 204) return { data: [], error: null };
+          const data = await resp.json();
+          return { data, error: null };
+        } catch (err) {
+          return { data: null, error: err };
+        }
+      }
+      then(resolve, reject) { return this._execute().then(resolve, reject); }
+    }
+
+    const MODELS = ['L36', 'TL58', 'L53i', 'TL54U'];
+
+    let devices = [];
+
+    const REPAIR_PRICES = {
+      'L36': {
+        '机芯': { partFee: 180, laborFee: 100 },
+        '压纸轴': { partFee: 20, laborFee: 100 },
+        '挡板': { partFee: 0, laborFee: 100 },
+        '纸仓盖按钮': { partFee: 0, laborFee: 100 },
+        '外壳': { partFee: 50, laborFee: 100 },
+        '电池': { partFee: 80, laborFee: 0 },
+        '充电器': { partFee: 30, laborFee: 0 },
+      },
+      'TL58': {
+        '主板': { partFee: 60, laborFee: 100 },
+        '蓝牙板': { partFee: 50, laborFee: 100 },
+        '机芯': { partFee: 100, laborFee: 100 },
+        '压纸轴': { partFee: 10, laborFee: 100 },
+        '外壳': { partFee: 50, laborFee: 100 },
+        '弹簧': { partFee: 0, laborFee: 0 },
+        '充电器': { partFee: 40, laborFee: 0 },
+      },
+      'L53i': {
+        '主板': { partFee: 180, laborFee: 100 },
+        '机芯': { partFee: 280, laborFee: 100 },
+        '压纸轴': { partFee: 25, laborFee: 100 },
+        '电池': { partFee: 90, laborFee: 0 },
+        '充电器': { partFee: 60, laborFee: 0 },
+        '外壳': { partFee: 50, laborFee: 100 },
+        '按键板(含蓝牙板)': { partFee: 120, laborFee: 100 },
+      },
+      'TL54U': {
+        '主板': { partFee: 180, laborFee: 100 },
+        '机芯': { partFee: 280, laborFee: 100 },
+        '热敏条': { partFee: 240, laborFee: 100 },
+        '充电器': { partFee: 60, laborFee: 0 },
+        '滚轴': { partFee: 25, laborFee: 100 },
+        '蓝牙板': { partFee: 50, laborFee: 100 },
+        '外壳': { partFee: 80, laborFee: 100 },
+        '传感板': { partFee: 20, laborFee: 100 },
+        '按键板': { partFee: 50, laborFee: 100 },
+        '转接板': { partFee: 50, laborFee: 100 },
+      },
+    };
+
+    let sessionState = { device: null, warrantyStatus: null };
+
+    function dbToDevice(d) {
+      return {
+        id: d.id,
+        customerId: d.customer_id || '',
+        model: d.model || '',
+        sn: d.sn || '',
+        mac: d.mac || '',
+        purchaseDate: d.purchase_date || '',
+        parts: d.parts || '',
+        repairFee: d.repair_fee || '',
+        returnTracking: d.return_tracking || '',
+        sendTracking: d.send_tracking || '',
+        warrantyType: d.warranty_type || '',
+        registerDate: d.register_date || '',
+        faultDesc: d.fault_desc || '',
+        repairStatus: d.repair_status || '已收件',
+        remark: d.remark || ''
+      };
+    }
+
+    async function loadDevicesFromCloud() {
+      const res = await supabase.from('devices').select('*').order('id', { ascending: false });
+      if (res.error) throw res.error;
+      devices = (res.data || []).map(dbToDevice);
+      console.log(`已从云端加载 ${devices.length} 条设备数据`);
+      return devices;
+    }
+
+    function getDevice(snOrMac) {
+      const trimmed = snOrMac.replace(/\s/g, '');
+      const normalized = snOrMac.replace(/[\s\-:]/g, '').toUpperCase();
+      return devices.find(d =>
+        d.sn === trimmed ||
+        d.sn === normalized ||
+        d.mac.replace(/[\s\-:]/g, '').toUpperCase() === normalized ||
+        (d.customerId && d.customerId.toUpperCase() === normalized)
+      ) || null;
+    }
+
+    function getDevicesByCustomerId(customerId) {
+      const cid = customerId.trim().toUpperCase();
+      return devices.filter(d => d.customerId && d.customerId.toUpperCase() === cid);
+    }
+
+    function parseDate(dateStr) {
+      if (!dateStr) return null;
+      let d = new Date(dateStr);
+      if (!isNaN(d)) return d;
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        let year = parseInt(parts[0], 10);
+        if (year < 100) year += 2000;
+        return new Date(year, parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      }
+      return null;
+    }
+
+    function daysBetween(d1, d2) {
+      return Math.floor(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24));
+    }
+
+    function getWarrantyStatus(device) {
+      const purchaseDate = parseDate(device.purchaseDate);
+      if (!purchaseDate) return 'outOfWarranty';
+      const days = daysBetween(purchaseDate, new Date());
+      if (days <= 15) return 'new';
+      if (days <= 365) return 'inWarranty';
+      return 'outOfWarranty';
+    }
+
+    const PART_SYNONYMS = {
+      '主控板': '主板',
+      '主控制板': '主板',
+      '卡扣': '挡板',
+      '锂电池': '电池',
+      '热敏头': '热敏条',
+      '电源适配器': '充电器',
+      'TL54传感板': '传感板',
+      'TL54按键板': '按键板',
+      'TL54转接板': '转接板',
+      'TL58电源适配器': '充电器',
+      'TL58蓝牙版': '蓝牙板',
+      'TL58蓝牙板': '蓝牙板'
+    };
+
+    const COMPOUND_PARTS = {
+      '主控板电源适配器': ['主板', '充电器']
+    };
+
+    function normalizePart(partName) {
+      partName = partName.trim();
+      if (COMPOUND_PARTS[partName]) {
+        return COMPOUND_PARTS[partName];
+      }
+      if (PART_SYNONYMS[partName]) {
+        return [PART_SYNONYMS[partName]];
+      }
+      return [partName];
+    }
+
+    function isFirmwareOnly(partsStr) {
+      if (!partsStr) return false;
+      const parts = partsStr.split(/[;；]/).map(p => p.trim()).filter(Boolean);
+      return parts.length === 1 && parts[0] === '固件';
+    }
+
+    function calcRepairPrice(model, partsStr) {
+      const modelPrices = REPAIR_PRICES[model];
+      if (!modelPrices) return null;
+
+      const rawParts = partsStr ? partsStr.split(/[;；]/).map(p => p.trim()).filter(Boolean) : [];
+      if (rawParts.length === 0) return null;
+
+      const normalizedParts = [];
+      rawParts.forEach(partName => {
+        if (partName === '固件') return;
+        const normalized = normalizePart(partName);
+        normalizedParts.push(...normalized);
+      });
+
+      if (normalizedParts.length === 0) return null;
+
+      const uniqueParts = [...new Set(normalizedParts)];
+
+      let totalPartFee = 0;
+      let maxLaborFee = 0;
+      const details = [];
+
+      uniqueParts.forEach(partName => {
+        let matched = null;
+        for (const [name, price] of Object.entries(modelPrices)) {
+          if (name === partName || name.includes(partName) || partName.includes(name)) {
+            matched = { name, ...price };
+            break;
+          }
+        }
+        if (matched) {
+          totalPartFee += matched.partFee;
+          if (matched.laborFee > maxLaborFee) maxLaborFee = matched.laborFee;
+          details.push({ name: matched.name, partFee: matched.partFee, laborFee: matched.laborFee });
+        }
+      });
+
+      const totalFee = totalPartFee + maxLaborFee;
+      return { details, totalPartFee, laborFee: maxLaborFee, totalFee };
+    }
+
+    function formatDeviceInfo(device) {
+      const purchaseDate = parseDate(device.purchaseDate);
+      const dateStr = purchaseDate
+        ? `${purchaseDate.getFullYear()}年${purchaseDate.getMonth()+1}月${purchaseDate.getDate()}日`
+        : device.purchaseDate;
+      const days = purchaseDate ? daysBetween(purchaseDate, new Date()) : '?';
+      const status = getWarrantyStatus(device);
+
+      let statusTag = '';
+      if (status === 'new') statusTag = '<span class="tag new">15天内 · 新机换新</span>';
+      else if (status === 'inWarranty') statusTag = '<span class="tag free">保内 · 免费维修</span>';
+      else statusTag = '<span class="tag price">已过保 · 需付费</span>';
+
+      let info = `设备信息：\n${device.customerId ? '客户编号：' + device.customerId + '\n' : ''}型号：${device.model || '未知'}\n序列号：${device.sn}\nMAC：${device.mac}\n购买日期：${dateStr}（${days}天前）\n\n${statusTag}`;
+
+      if (device.parts && device.parts.trim()) {
+        info += `\n\n需更换配件：${device.parts}`;
+
+        if (isFirmwareOnly(device.parts)) {
+          info += '\n\n<span class="tag free">无需收费</span>\n\n该打印机只升级了固件，无需维修和收费。';
+        } else if (status === 'new') {
+          info += '\n\n好消息！您的设备在新机换新期内（购买15天内），可直接换新机，无需支付任何费用。';
+        } else if (status === 'inWarranty') {
+          info += '\n\n<span class="tag free">维修费用：免费</span>\n\n您的设备在保修期内，以上配件维修不收取费用。';
+        } else {
+          const priceInfo = calcRepairPrice(device.model, device.parts);
+          if (priceInfo && priceInfo.details.length > 0) {
+            info += '\n\n维修报价：';
+            priceInfo.details.forEach(d => {
+              info += `\n· ${d.name}：配件¥${d.partFee}`;
+            });
+            info += `\n· 人工费：¥${priceInfo.laborFee}（单台打印机多配件仅收一次）`;
+            info += `\n\n<span class="tag price">合计：¥${priceInfo.totalFee}</span>`;
+            info += '\n\n如确认维修，请联系工作人员办理。';
+          } else {
+            info += '\n\n暂无该配件的报价信息，请联系工作人员确认。';
+          }
+        }
+      } else {
+        if (status === 'new') {
+          info += '\n\n您的设备在新机换新期内（购买15天内），可直接换新机，无需维修。';
+        } else if (status === 'inWarranty') {
+          info += '\n\n您的设备在保修期内，维修免费。如需维修请联系售后。';
+        } else {
+          info += '\n\n暂未登记需更换的配件，请联系工作人员确认维修项目后获取报价。';
+        }
+      }
+
+      info += '\n\n还有其他问题吗？';
+      return info;
+    }
+
+    function listAllPrices() {
+      let s = '各型号配件维修价格表：\n';
+      for (const [model, parts] of Object.entries(REPAIR_PRICES)) {
+        s += `\n【${model}】\n`;
+        for (const [part, price] of Object.entries(parts)) {
+          const total = price.partFee + price.laborFee;
+          s += `· ${part}：¥${total}（配件¥${price.partFee}+人工¥${price.laborFee}）\n`;
+        }
+      }
+      s += '\n注：单台打印机多配件维修只收一次人工费\n\n如需查询具体设备的维修信息，请提供序列号或MAC地址。';
+      return s;
+    }
+
+    function pick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function detectModel(text) {
+      const t = text.toUpperCase().replace(/[\s\-]/g, '');
+      for (const model of MODELS) {
+        if (t.includes(model.toUpperCase())) return model;
+      }
+      if (t.includes('L3') || t.includes('36')) return 'L36';
+      if (t.includes('TL5') || t.includes('58')) return 'TL58';
+      if (t.includes('L5') || t.includes('53')) return 'L53i';
+      if (t.includes('TL54') || t.includes('54U')) return 'TL54U';
+      if (t.includes('打印机') || t.includes('机器') || t.includes('设备')) return 'generic';
+      return null;
+    }
+
+    function isRepairRelated(text) {
+      const keywords = ['维修', '修理', '报价', '价格', '多少钱', '费用', '配件', '保修', '序列号', 'MAC', 'SN', '查询', '型号', '打印机', '机器', '设备', '坏', '故障', '换', '修', '客户', '编号'];
+      const t = text.replace(/[\s\-:]/g, '').toUpperCase();
+      if (/^[0-9]{8,12}$/.test(text.trim())) return true;
+      if (/^([0-9A-Fa-f]{2}[:\-]?){5}[0-9A-Fa-f]{2}$/.test(text.replace(/\s/g, ''))) return true;
+      if (detectModel(text)) return true;
+      return keywords.some(k => t.includes(k.toUpperCase()));
+    }
+
+    function getGreeting() {
+      const greetings = [
+        `您好！我是您的打印机维修顾问，很高兴为您服务。\n\n请告诉我您打印机的【序列号】、【MAC地址】或【客户编号】，我来帮您查询维修信息和报价。`,
+        `您好！欢迎使用打印机维修报价系统。\n\n请提供您的打印机序列号、MAC地址或客户编号，我将为您查询相关信息。`,
+        `Hi！我是打印机维修助手。\n\n想了解维修价格或保修状态吗？请把您的打印机序列号、MAC地址或客户编号告诉我，我来帮您查一下。`
+      ];
+      return pick(greetings);
+    }
+
+    function resetSession() {
+      sessionState = { device: null, warrantyStatus: null };
+      const replies = [
+        '好的，已为您重新开始。请输入打印机的序列号或MAC地址。',
+        '没问题，我们重新来。请告诉我您要查询的打印机序列号或MAC地址。',
+        '已重置。请提供新的序列号或MAC地址进行查询。'
+      ];
+      return pick(replies);
+    }
+
+    function askForSerialNumber(model) {
+      if (model === 'generic') {
+        const replies = [
+          '好的，请问您的打印机序列号或MAC地址是多少呢？有了这个信息我才能帮您查询具体的维修情况和报价。',
+          '明白了。麻烦您提供一下打印机的序列号（机身标签上的10位数字）或MAC地址，我来帮您查询。',
+          '收到！请告诉我打印机的序列号或MAC地址，我帮您看看维修记录和保修状态。'
+        ];
+        return pick(replies);
+      }
+      const replies = [
+        `${model} 是我们支持维修的型号。请问您这台机器的序列号或MAC地址是多少？我帮您查一下维修信息和保修状态。`,
+        `好的，您说的是 ${model} 型号。能告诉我它的序列号或MAC地址吗？我来查询具体的维修记录和报价。`,
+        `${model} 没问题，这个型号我们可以维修。请提供一下序列号或MAC地址，我帮您查看详细信息。`
+      ];
+      return pick(replies);
+    }
+
+    function noRecordReply() {
+      const replies = [
+        '对不起，您提供的打印机信息未有维修记录。\n\n请核实序列号或MAC地址是否正确。',
+        '抱歉，我在系统中没有找到这台打印机的记录。\n\n请确认您输入的序列号或MAC地址是否准确。',
+        '很抱歉，未能找到该设备的维修记录。\n\n建议您检查一下序列号或MAC地址是否输入正确。'
+      ];
+      return pick(replies);
+    }
+
+    function unknownReply() {
+      const replies = [
+        '抱歉，这个问题我不太了解。\n\n我主要负责打印机维修报价咨询，您可以告诉我打印机的序列号或MAC地址，我来帮您查询。',
+        '不好意思，这个我回答不了。\n\n如果您需要查询打印机维修相关信息，请提供序列号或MAC地址给我。',
+        '抱歉，我不知道。\n\n我是打印机维修报价助手，可以帮您查询维修价格和保修状态。请告诉我您的打印机序列号或MAC地址。'
+      ];
+      return pick(replies);
+    }
+
+    function getBotResponse(userText) {
+      const trimmed = (userText || '').trim();
+      if (!trimmed) {
+        return pick(['请问有什么可以帮您？', '您想查询什么呢？', '请输入您的问题。']);
+      }
+
+      const t = trimmed.toUpperCase().replace(/[\s\-:]/g, '');
+
+      if (/^(你好|您好|嗨|hi|hello|哈喽)/i.test(trimmed)) {
+        return pick([
+          '您好！请问有什么可以帮您？如需查询维修信息，请告诉我打印机的序列号或MAC地址。',
+          '您好！很高兴为您服务。请提供打印机序列号或MAC地址，我来帮您查询。',
+          'Hi！需要查询打印机维修报价吗？请告诉我序列号或MAC地址。'
+        ]);
+      }
+
+      if (/^(谢谢|感谢|thanks|thank)/i.test(trimmed)) {
+        return pick([
+          '不客气！如果还有其他问题，随时可以问我。',
+          '很高兴能帮到您！还需要查询其他信息吗？',
+          '不用谢！有问题随时找我。'
+        ]);
+      }
+
+      if (/^(没有|没了|不用|不需要|没问题|就这样|好的|嗯|OK|ok|行|可以了|暂时没有|没什么|没啥|拜拜|再见|bye)/i.test(trimmed)) {
+        return pick([
+          '好的，感谢您的咨询！如有需要随时再来。',
+          '好的，祝您使用愉快！有问题随时找我。',
+          '没问题，后续有任何维修需求欢迎随时咨询！'
+        ]);
+      }
+
+      if (t.includes('重新') || t.includes('重置') || t.includes('清空') || t.includes('换一个')) {
+        return resetSession();
+      }
+
+      const mentionedModel = detectModel(trimmed);
+      if (mentionedModel && !/[0-9]{6,}/.test(trimmed) && !/([0-9A-Fa-f]{2}[:\-]){3,}/.test(trimmed)) {
+        sessionState.mentionedModel = mentionedModel;
+        return askForSerialNumber(mentionedModel);
+      }
+
+      if (!isRepairRelated(trimmed)) {
+        return unknownReply();
+      }
+
+      if (t.includes('配件') && (t.includes('价格') || t.includes('表') || t.includes('多少'))) {
+        return listAllPrices();
+      }
+
+      const device = getDevice(trimmed);
+      if (device) {
+        sessionState.device = device;
+        sessionState.warrantyStatus = getWarrantyStatus(device);
+        const intro = pick([
+          '好的，我找到了这台打印机的信息：\n\n',
+          '查到了！以下是这台设备的详细信息：\n\n',
+          '已为您查询到相关记录：\n\n'
+        ]);
+        return intro + formatDeviceInfo(device);
+      }
+
+      if (/^[0-9]{8,12}$/.test(trimmed) || /^([0-9A-Fa-f]{2}[:\-]?){5}[0-9A-Fa-f]{2}$/.test(trimmed.replace(/\s/g, ''))) {
+        return noRecordReply();
+      }
+
+      return pick([
+        '请提供打印机的序列号（10位数字）或MAC地址，我来帮您查询维修信息。',
+        '麻烦告诉我打印机的序列号或MAC地址，这样我才能帮您查询哦。',
+        '需要序列号或MAC地址才能查询。序列号通常在机身标签上，是一串数字。'
+      ]);
+    }
+
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    function addBotMessage(text) {
+      const div = document.createElement('div');
+      div.className = 'message bot';
+      div.innerHTML = text.replace(/\n/g, '<br>');
+      messagesEl.appendChild(div);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function send() {
+      const text = userInput.value.trim();
+      if (!text) return;
+      const userDiv = document.createElement('div');
+      userDiv.className = 'message user';
+      userDiv.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
+      messagesEl.appendChild(userDiv);
+      userInput.value = '';
+
+      setTimeout(() => {
+        addBotMessage(getBotResponse(text));
+      }, 200);
+    }
+
+    function initChat() {
+      messagesEl.innerHTML = '';
+      addBotMessage(getGreeting());
+    }
+
+    const messagesEl = document.getElementById('messages');
+    const userInput = document.getElementById('userInput');
+
+    document.getElementById('sendBtn').addEventListener('click', send);
+    userInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    });
+
+    document.querySelectorAll('.quick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        userInput.value = btn.getAttribute('data-ask');
+        send();
+      });
+    });
+
+    (async function init() {
+      try {
+        await loadDevicesFromCloud();
+      } catch (err) {
+        console.error('初始数据加载失败:', err);
+      }
+      initChat();
+      console.log(`系统就绪，已加载 ${devices.length} 条数据`);
+    })();
+  </script>
+</body>
+</html>

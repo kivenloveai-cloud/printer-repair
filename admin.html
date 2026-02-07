@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>打印机维修记录管理</title>
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --surface: #ffffff;
+      --border: #e2e2e5;
+      --primary: #4f46e5;
+      --primary-soft: rgba(79, 70, 229, 0.08);
+      --user-msg: #4f46e5;
+      --bot-msg: #f4f4f5;
+      --text: #1a1a2e;
+      --text-muted: #6b7280;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --radius: 12px;
+      --font: system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px; }
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+    .form-input:focus { outline: none; border-color: var(--primary); }
+
+    .error-msg {
+      color: var(--danger);
+      font-size: 0.85rem;
+      text-align: center;
+      margin-top: 12px;
+      min-height: 20px;
+    }
+
+    /* ===== 全屏登录页 ===== */
+    .login-page {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      overflow: hidden;
+      transition: opacity 0.5s, visibility 0.5s;
+    }
+    .login-page.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .login-bg {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      overflow: hidden;
+    }
+    .login-bg-circle {
+      position: absolute;
+      border-radius: 50%;
+      opacity: 0.08;
+      background: #fff;
+    }
+    .login-bg-circle.c1 {
+      width: 600px; height: 600px;
+      top: -200px; right: -100px;
+      animation: float1 20s ease-in-out infinite;
+    }
+    .login-bg-circle.c2 {
+      width: 400px; height: 400px;
+      bottom: -150px; left: -80px;
+      animation: float2 18s ease-in-out infinite;
+    }
+    .login-bg-circle.c3 {
+      width: 250px; height: 250px;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      animation: float3 15s ease-in-out infinite;
+    }
+    @keyframes float1 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(-30px, 40px); }
+    }
+    @keyframes float2 {
+      0%, 100% { transform: translate(0, 0); }
+      50% { transform: translate(40px, -30px); }
+    }
+    @keyframes float3 {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.2); }
+    }
+
+    .login-card {
+      position: relative;
+      z-index: 1;
+      width: 420px;
+      max-width: 92vw;
+      padding: 48px 40px 36px;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.3);
+      text-align: center;
+      animation: cardSlideIn 0.6s ease-out;
+    }
+    @keyframes cardSlideIn {
+      from { opacity: 0; transform: translateY(30px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .login-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 72px; height: 72px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.35);
+    }
+
+    .login-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+    .login-subtitle {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+    }
+
+    .login-form {
+      text-align: left;
+    }
+    .login-field {
+      margin-bottom: 20px;
+    }
+    .login-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+      letter-spacing: 0.02em;
+    }
+    .login-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 14px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .login-input-wrap:focus-within {
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.12);
+    }
+    .login-input-icon {
+      flex-shrink: 0;
+      color: var(--text-muted);
+    }
+    .login-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      padding: 13px 0;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+    .login-input::placeholder {
+      color: #b0b0b8;
+    }
+
+    .login-error {
+      color: var(--danger);
+      font-size: 0.83rem;
+      text-align: center;
+      min-height: 22px;
+      margin-bottom: 4px;
+    }
+
+    .login-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+      letter-spacing: 0.05em;
+    }
+    .login-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(102, 126, 234, 0.45);
+    }
+    .login-btn:active {
+      transform: translateY(0);
+    }
+    .login-btn-arrow {
+      transition: transform 0.2s;
+    }
+    .login-btn:hover .login-btn-arrow {
+      transform: translateX(3px);
+    }
+
+    .login-footer {
+      margin-top: 28px;
+      font-size: 0.75rem;
+      color: #aaa;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* 模态框 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      width: 90%;
+      max-width: 550px;
+      max-height: 92vh;
+      overflow-y: auto;
+    }
+    .modal.modal-wide {
+      max-width: 860px;
+    }
+    .modal.modal-wide .form-group { margin-bottom: 6px; }
+    .modal.modal-wide .form-label { margin-bottom: 2px; font-size: 0.78rem; }
+    .modal.modal-wide .form-input { padding: 7px 10px; font-size: 0.84rem; }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .modal-title { font-size: 1.1rem; font-weight: 600; }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: #5558e3; }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-danger { background: var(--danger); color: #fff; }
+
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* 管理表格样式 */
+    .device-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .device-table th {
+      padding: 8px 6px;
+      text-align: left;
+      color: var(--text-muted);
+      font-weight: 500;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      z-index: 1;
+    }
+    .device-table td {
+      padding: 8px 6px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .device-table tr:hover td { background: rgba(99, 102, 241, 0.05); }
+    .status-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .status-badge.已收件 { background: rgba(99,102,241,0.15); color: var(--primary); }
+    .status-badge.未报价 { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .status-badge.已报价 { background: rgba(59,130,246,0.15); color: #3b82f6; }
+    .status-badge.待维修 { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .status-badge.待发货 { background: rgba(168,85,247,0.15); color: #a855f7; }
+    .status-badge.已发货 { background: rgba(34,197,94,0.15); color: var(--success); }
+    .status-badge.保外收费 { background: rgba(239,68,68,0.15); color: var(--danger); }
+    .status-badge.保内免费 { background: rgba(34,197,94,0.15); color: var(--success); }
+    .status-badge.新机换新 { background: rgba(245,158,11,0.15); color: var(--warning); }
+    .status-badge.以旧换新 { background: rgba(168,85,247,0.15); color: #a855f7; }
+    .action-btns { display: flex; gap: 4px; white-space: nowrap; }
+    .action-btn {
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.72rem;
+    }
+    .action-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .action-btn.del:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* 管理面板（全屏） */
+    .admin-panel {
+      display: none;
+      width: 100%;
+      max-width: 1400px;
+      height: 95vh;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    }
+    .admin-panel.show { display: flex; }
+    .admin-panel .header { flex-shrink: 0; }
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filter-bar .form-input, .filter-bar select {
+      padding: 8px 10px;
+      font-size: 0.82rem;
+      width: auto;
+      min-width: 0;
+    }
+    .filter-item { display: flex; flex-direction: column; gap: 2px; }
+    .filter-item label { font-size: 0.7rem; color: var(--text-muted); }
+    .table-wrap {
+      flex: 1;
+      overflow: auto;
+      padding: 0;
+    }
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+    .admin-table th {
+      padding: 10px 8px;
+      text-align: left;
+      color: var(--text-muted);
+      font-weight: 500;
+      border-bottom: 2px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      z-index: 1;
+      position: relative;
+    }
+    .admin-table th .col-resizer {
+      position: absolute;
+      right: 0; top: 0; bottom: 0;
+      width: 5px;
+      cursor: col-resize;
+      user-select: none;
+    }
+    .admin-table th .col-resizer:hover,
+    .admin-table th .col-resizer.active { background: var(--primary); }
+    .admin-table td {
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .admin-table tr:hover td { background: rgba(99, 102, 241, 0.05); }
+    .admin-table .sn-cell { color: var(--primary); font-weight: 600; }
+    .expand-row td { padding: 0 !important; border-bottom: 2px solid var(--primary); }
+    .expand-content {
+      padding: 12px 16px;
+      background: var(--bg);
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px 20px;
+      font-size: 0.8rem;
+    }
+    .expand-item { display: flex; gap: 6px; }
+    .expand-label { color: var(--text-muted); white-space: nowrap; min-width: 70px; }
+    .expand-value { color: var(--text); word-break: break-all; }
+    .expand-toggle {
+      cursor: pointer;
+      color: var(--primary);
+      font-size: 0.7rem;
+      background: var(--primary-soft);
+      border: 1px solid rgba(79,70,229,0.2);
+      border-radius: 4px;
+      padding: 2px 6px;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .expand-toggle:hover { background: var(--primary); color: #fff; }
+    /* 列设置弹窗 */
+    .col-settings-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.3); z-index: 200; display: none;
+      align-items: center; justify-content: center;
+    }
+    .col-settings-overlay.show { display: flex; }
+    .col-settings-box {
+      background: var(--surface); border-radius: 12px; padding: 20px;
+      width: 380px; max-height: 80vh; overflow-y: auto;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    }
+    .col-settings-box h3 { margin-bottom: 12px; font-size: 1rem; }
+    .col-item {
+      display: flex; align-items: center; gap: 8px; padding: 6px 0;
+      border-bottom: 1px solid var(--border); cursor: grab;
+    }
+    .col-item:active { cursor: grabbing; }
+    .col-item label { flex: 1; font-size: 0.85rem; cursor: pointer; }
+    .admin-stats {
+      padding: 8px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .tab-btns { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .tab-btn.active { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .tab-header-btn {
+      padding: 6px 16px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .tab-header-btn.active { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+    .tab-header-btn:hover { color: var(--primary); }
+    .hidden { display: none !important; }
+    .multi-select { position: relative; }
+    .multi-select-display {
+      padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); cursor: pointer; font-size: 0.84rem; color: var(--text);
+      min-height: 36px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+    }
+    .multi-select-display:hover { border-color: var(--primary); }
+    .multi-select-display.open { border-color: var(--primary); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+    .multi-select-tag {
+      background: var(--primary-soft); color: var(--primary); padding: 2px 8px;
+      border-radius: 4px; font-size: 0.76rem; white-space: nowrap;
+    }
+    .multi-select-placeholder { color: var(--text-muted); }
+    .multi-select-dropdown {
+      display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+      background: var(--surface); border: 1px solid var(--primary); border-top: none;
+      border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;
+      max-height: 180px; overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .multi-select-dropdown.open { display: block; }
+    .multi-select-option {
+      padding: 6px 10px; cursor: pointer; font-size: 0.82rem;
+      display: flex; align-items: center; gap: 8px; transition: background 0.1s;
+    }
+    .multi-select-option:hover { background: var(--primary-soft); }
+    .multi-select-option input[type="checkbox"] { accent-color: var(--primary); }
+
+    .header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(79, 70, 229, 0.04) 0%, transparent 100%);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header-left h1 { font-size: 1.1rem; font-weight: 600; }
+    .header-left p { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+    .header-right { display: flex; gap: 8px; }
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+    .icon-btn:hover { border-color: var(--primary); color: var(--primary); }
+  </style>
+</head>
+<body>
+  <!-- 新增/编辑设备弹窗 -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h3 class="modal-title" id="editModalTitle">新增维修记录</h3>
+        <button class="modal-close" onclick="closeModal('editModal')">&times;</button>
+      </div>
+      <form id="editForm">
+        <input type="hidden" id="editMode" value="add">
+        <input type="hidden" id="editId" value="">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">客户编号</label>
+            <input type="text" class="form-input" id="editCustomerId" placeholder="客户编号">
+          </div>
+          <div class="form-group">
+            <label class="form-label">打印机型号 *</label>
+            <select class="form-input" id="editModel">
+              <option value=""></option>
+              <option value="L36">L36</option>
+              <option value="TL58">TL58</option>
+              <option value="L53i">L53i</option>
+              <option value="TL54U">TL54U</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">序列号 *</label>
+            <input type="text" class="form-input" id="editSN" placeholder="请输入序列号">
+          </div>
+          <div class="form-group">
+            <label class="form-label">MAC地址 *</label>
+            <input type="text" class="form-input" id="editMAC" placeholder="DC:0D:30:32:57:E4">
+          </div>
+          <div class="form-group">
+            <label class="form-label">购买日期 *</label>
+            <input type="date" class="form-input" id="editPurchaseDate" onclick="this.showPicker&&this.showPicker()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">维保选择</label>
+            <select class="form-input" id="editWarrantyType">
+              <option value=""></option>
+              <option value="新机换新">新机换新</option>
+              <option value="保内免费">保内免费</option>
+              <option value="保外收费">保外收费</option>
+              <option value="以旧换新">以旧换新</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">维修状态</label>
+            <select class="form-input" id="editRepairStatus">
+              <option value="已收件">已收件</option>
+              <option value="未报价">未报价</option>
+              <option value="已报价">已报价</option>
+              <option value="待维修">待维修</option>
+              <option value="待发货">待发货</option>
+              <option value="已发货">已发货</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">登记日期</label>
+            <input type="date" class="form-input" id="editRegisterDate" onclick="this.showPicker&&this.showPicker()">
+          </div>
+          <div class="form-group" style="grid-column:span 2;">
+            <label class="form-label">需更换配件</label>
+            <div class="multi-select" id="editPartsMulti">
+              <div class="multi-select-display" id="editPartsDisplay" onclick="togglePartsDropdown()">请选择配件...</div>
+              <div class="multi-select-dropdown" id="editPartsDropdown"></div>
+            </div>
+            <input type="hidden" id="editParts">
+          </div>
+          <div class="form-group">
+            <label class="form-label">需付费</label>
+            <div id="editFeeDisplay" style="font-size:0.88rem;padding:7px 0;color:var(--text);font-weight:600;">-</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">寄回快递单号</label>
+            <input type="text" class="form-input" id="editReturnTracking" placeholder="客户寄来的快递单号">
+          </div>
+          <div class="form-group">
+            <label class="form-label">寄出快递单号</label>
+            <input type="text" class="form-input" id="editSendTracking" placeholder="寄回客户的快递单号">
+          </div>
+          <div class="form-group" style="grid-column:span 3;">
+            <label class="form-label">故障描述</label>
+            <input type="text" class="form-input" id="editFaultDesc" placeholder="描述打印机故障情况">
+          </div>
+          <div class="form-group" style="grid-column:span 3;">
+            <label class="form-label">备注</label>
+            <input type="text" class="form-input" id="editRemark" placeholder="其他备注信息">
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:12px;">
+          <button type="submit" class="btn btn-primary" id="editSubmitBtn">添加</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 管理面板（全屏表格） -->
+  <div class="admin-panel" id="adminPanel">
+    <header class="header">
+      <div class="header-left">
+        <div style="display:flex;gap:16px;align-items:center;">
+          <button class="tab-header-btn active" id="tabDevicesBtn" onclick="switchAdminTab('devices')">维修记录</button>
+          <button class="tab-header-btn hidden" id="tabStaffBtn" onclick="switchAdminTab('staff')">人员管理</button>
+        </div>
+        <p id="adminHeaderInfo"></p>
+      </div>
+      <div class="header-right">
+        <button class="btn btn-primary" style="font-size:0.82rem;padding:6px 14px;" id="btnAddDevice" onclick="openEditForm('add')">+ 新增记录</button>
+        <button class="btn btn-secondary" style="font-size:0.78rem;padding:5px 10px;" id="btnColSettings" onclick="openColSettings()">列设置</button>
+        <button class="btn btn-primary hidden" style="font-size:0.82rem;padding:6px 14px;" id="btnAddStaff" onclick="openStaffForm('add')">+ 新增人员</button>
+        <button class="icon-btn" id="adminChangePwdBtn" title="修改密码">🔑</button>
+        <button class="icon-btn" id="adminLogoutBtn" title="退出管理">⏻</button>
+      </div>
+    </header>
+
+    <!-- 维修记录 Tab -->
+    <div id="tabDevicesContent">
+    <div class="filter-bar">
+      <div class="filter-item">
+        <label>客户编号</label>
+        <input type="text" class="form-input" id="filterCustomerId" placeholder="客户编号...">
+      </div>
+      <div class="filter-item">
+        <label>序列号/MAC</label>
+        <input type="text" class="form-input" id="filterSN" placeholder="输入搜索...">
+      </div>
+      <div class="filter-item">
+        <label>型号</label>
+        <select class="form-input" id="filterModel">
+          <option value="">全部</option>
+          <option value="__empty__">（空）</option>
+          <option value="L36">L36</option>
+          <option value="TL58">TL58</option>
+          <option value="L53i">L53i</option>
+          <option value="TL54U">TL54U</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>维修状态</label>
+        <select class="form-input" id="filterStatus">
+          <option value="">全部</option>
+          <option value="已收件">已收件</option>
+          <option value="未报价">未报价</option>
+          <option value="已报价">已报价</option>
+          <option value="待维修">待维修</option>
+          <option value="待发货">待发货</option>
+          <option value="已发货">已发货</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>维保选择</label>
+        <select class="form-input" id="filterWarranty">
+          <option value="">全部</option>
+          <option value="__empty__">（空）</option>
+          <option value="新机换新">新机换新</option>
+          <option value="保内免费">保内免费</option>
+          <option value="保外收费">保外收费</option>
+          <option value="以旧换新">以旧换新</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>快递单号</label>
+        <input type="text" class="form-input" id="filterTracking" placeholder="寄回/寄出...">
+      </div>
+      <div class="filter-item" style="justify-content:flex-end;">
+        <label>&nbsp;</label>
+        <button class="btn btn-secondary" style="font-size:0.8rem;padding:7px 12px;" onclick="clearFilters()">清空</button>
+      </div>
+    </div>
+
+    <div class="table-wrap" id="adminTableWrap">
+      <table class="admin-table" id="adminTable">
+        <thead>
+          <tr></tr>
+        </thead>
+        <tbody id="adminTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="admin-stats">
+      <span id="adminStatsInfo">加载中...</span>
+      <button class="btn btn-secondary" style="font-size:0.75rem;padding:4px 10px;" onclick="exportExcel()">导出Excel</button>
+    </div>
+    </div><!-- /tabDevicesContent -->
+
+    <!-- 人员管理 Tab -->
+    <div id="tabStaffContent" style="display:none;">
+      <div class="table-wrap">
+        <table class="admin-table" id="staffTable">
+          <thead>
+            <tr>
+              <th>工号</th>
+              <th>姓名</th>
+              <th>角色</th>
+              <th>状态</th>
+              <th>创建时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="staffTableBody"></tbody>
+        </table>
+      </div>
+      <div class="admin-stats">
+        <span id="staffStatsInfo">加载中...</span>
+      </div>
+    </div><!-- /tabStaffContent -->
+  </div>
+
+  <!-- 列设置弹窗 -->
+  <div class="col-settings-overlay" id="colSettingsOverlay">
+    <div class="col-settings-box">
+      <h3>列显示设置</h3>
+      <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:12px;">拖拽可调整顺序，取消勾选可隐藏列</p>
+      <div id="colSettingsList"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+        <button class="btn btn-secondary" style="font-size:0.8rem;padding:6px 12px;" onclick="resetColSettings()">恢复默认</button>
+        <button class="btn btn-primary" style="font-size:0.8rem;padding:6px 12px;" onclick="applyColSettings()">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增/编辑人员弹窗 -->
+  <div class="modal-overlay" id="staffModal">
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="staffModalTitle">新增人员</h3>
+        <button class="modal-close" onclick="closeModal('staffModal')">&times;</button>
+      </div>
+      <form id="staffForm">
+        <input type="hidden" id="staffEditMode" value="add">
+        <input type="hidden" id="staffEditId" value="">
+        <div class="form-group">
+          <label class="form-label">工号 *</label>
+          <input type="text" class="form-input" id="staffUsername" placeholder="登录工号" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">姓名</label>
+          <input type="text" class="form-input" id="staffName" placeholder="姓名">
+        </div>
+        <div class="form-group">
+          <label class="form-label">密码 *</label>
+          <input type="text" class="form-input" id="staffPassword" placeholder="登录密码" required minlength="6">
+        </div>
+        <div class="form-group">
+          <label class="form-label">角色</label>
+          <select class="form-input" id="staffRole">
+            <option value="operator">操作员</option>
+            <option value="admin">管理员</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">状态</label>
+          <select class="form-input" id="staffActive">
+            <option value="true">启用</option>
+            <option value="false">禁用</option>
+          </select>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('staffModal')">取消</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 修改密码 -->
+  <div class="modal-overlay" id="pwdModal">
+    <div class="modal" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3 class="modal-title">修改管理员密码</h3>
+        <button class="modal-close" onclick="closeModal('pwdModal')">&times;</button>
+      </div>
+      <form id="pwdForm">
+        <div class="form-group">
+          <label class="form-label">当前密码</label>
+          <input type="password" class="form-input" id="oldPwd" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">新密码</label>
+          <input type="password" class="form-input" id="newPwd" required minlength="6">
+        </div>
+        <div class="form-group">
+          <label class="form-label">确认新密码</label>
+          <input type="password" class="form-input" id="confirmPwd" required>
+        </div>
+        <div class="error-msg" id="pwdError"></div>
+        <div class="btn-row">
+          <button type="submit" class="btn btn-primary">确认修改</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('pwdModal')">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 全屏登录页 -->
+  <div class="login-page" id="loginPage">
+    <div class="login-bg">
+      <div class="login-bg-circle c1"></div>
+      <div class="login-bg-circle c2"></div>
+      <div class="login-bg-circle c3"></div>
+    </div>
+    <div class="login-card">
+      <div class="login-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="6" y="2" width="12" height="20" rx="2"/>
+          <line x1="9" y1="18" x2="15" y2="18"/>
+          <line x1="9" y1="6" x2="15" y2="6"/>
+          <line x1="9" y1="10" x2="15" y2="10"/>
+          <circle cx="12" cy="14" r="1"/>
+        </svg>
+      </div>
+      <h2 class="login-title">打印机维修管理后台</h2>
+      <p class="login-subtitle">请输入工号和密码登录系统</p>
+      <form id="adminLoginForm" class="login-form">
+        <div class="login-field">
+          <label class="login-label">工号</label>
+          <div class="login-input-wrap">
+            <svg class="login-input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <input type="text" class="login-input" id="adminUsername" placeholder="请输入工号" required autocomplete="off">
+          </div>
+        </div>
+        <div class="login-field">
+          <label class="login-label">密码</label>
+          <div class="login-input-wrap">
+            <svg class="login-input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" class="login-input" id="adminPassword" placeholder="请输入密码" required autocomplete="off">
+          </div>
+        </div>
+        <div class="login-error" id="loginError"></div>
+        <button type="submit" class="login-btn">
+          <span class="login-btn-text">登 录</span>
+          <svg class="login-btn-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/>
+            <polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </button>
+      </form>
+      <p class="login-footer">Printer Repair Management System</p>
+    </div>
+  </div>
+
+  <script>
+    // ========== Supabase 配置 ==========
+    const SUPABASE_URL = 'https://nthmtpvjucnqfypkgmoz.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50aG10cHZqdWNucWZ5cGtnbW96Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0MjMwMjAsImV4cCI6MjA4NTk5OTAyMH0.lG4oOIm2f8w6eglKxx-gGChK1yuEl_8ZgR98051qpNg';
+
+    const supabase = {
+      from(table) {
+        return new SupabaseQuery(table);
+      }
+    };
+    class SupabaseQuery {
+      constructor(table) {
+        this._table = table;
+        this._method = 'GET';
+        this._filters = [];
+        this._selectFields = '*';
+        this._orderStr = '';
+        this._body = null;
+        this._prefer = '';
+      }
+      select(fields) { this._method = 'GET'; if (fields) this._selectFields = fields; return this; }
+      insert(rows) { this._method = 'POST'; this._body = rows; this._prefer = 'return=representation'; return this; }
+      upsert(rows, { onConflict } = {}) { this._method = 'POST'; this._body = Array.isArray(rows) ? rows : [rows]; this._prefer = 'resolution=merge-duplicates,return=representation'; if (onConflict) this._filters.push(`on_conflict=${onConflict}`); return this; }
+      update(data) { this._method = 'PATCH'; this._body = data; this._prefer = 'return=representation'; return this; }
+      delete() { this._method = 'DELETE'; return this; }
+      eq(field, value) { this._filters.push(`${field}=eq.${encodeURIComponent(value)}`); return this; }
+      neq(field, value) { this._filters.push(`${field}=neq.${encodeURIComponent(value)}`); return this; }
+      order(field, opts = {}) { this._orderStr = `order=${field}.${opts.ascending ? 'asc' : 'desc'}`; return this; }
+      async _execute() {
+        let url = `${SUPABASE_URL}/rest/v1/${this._table}`;
+        const parts = [...this._filters];
+        if (this._method === 'GET' && this._selectFields) parts.push(`select=${encodeURIComponent(this._selectFields)}`);
+        if (this._orderStr) parts.push(this._orderStr);
+        if (parts.length) url += '?' + parts.join('&');
+        const headers = { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Content-Type': 'application/json' };
+        if (this._prefer) headers['Prefer'] = this._prefer;
+        const fetchOpts = { method: this._method, headers };
+        if (this._body) fetchOpts.body = JSON.stringify(this._body);
+        try {
+          const resp = await fetch(url, fetchOpts);
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            return { data: null, error: new Error(err.message || `HTTP ${resp.status}`) };
+          }
+          if (resp.status === 204) return { data: [], error: null };
+          const data = await resp.json();
+          return { data, error: null };
+        } catch (err) {
+          return { data: null, error: err };
+        }
+      }
+      then(resolve, reject) { return this._execute().then(resolve, reject); }
+    }
+
+    const MODELS = ['L36', 'TL58', 'L53i', 'TL54U'];
+
+    let devices = [];
+
+    const REPAIR_PRICES = {
+      'L36': {
+        '机芯': { partFee: 180, laborFee: 100 },
+        '压纸轴': { partFee: 20, laborFee: 100 },
+        '挡板': { partFee: 0, laborFee: 100 },
+        '纸仓盖按钮': { partFee: 0, laborFee: 100 },
+        '外壳': { partFee: 50, laborFee: 100 },
+        '电池': { partFee: 80, laborFee: 0 },
+        '充电器': { partFee: 30, laborFee: 0 },
+      },
+      'TL58': {
+        '主板': { partFee: 60, laborFee: 100 },
+        '蓝牙板': { partFee: 50, laborFee: 100 },
+        '机芯': { partFee: 100, laborFee: 100 },
+        '压纸轴': { partFee: 10, laborFee: 100 },
+        '外壳': { partFee: 50, laborFee: 100 },
+        '弹簧': { partFee: 0, laborFee: 0 },
+        '充电器': { partFee: 40, laborFee: 0 },
+      },
+      'L53i': {
+        '主板': { partFee: 180, laborFee: 100 },
+        '机芯': { partFee: 280, laborFee: 100 },
+        '压纸轴': { partFee: 25, laborFee: 100 },
+        '电池': { partFee: 90, laborFee: 0 },
+        '充电器': { partFee: 60, laborFee: 0 },
+        '外壳': { partFee: 50, laborFee: 100 },
+        '按键板(含蓝牙板)': { partFee: 120, laborFee: 100 },
+      },
+      'TL54U': {
+        '主板': { partFee: 180, laborFee: 100 },
+        '机芯': { partFee: 280, laborFee: 100 },
+        '热敏条': { partFee: 240, laborFee: 100 },
+        '充电器': { partFee: 60, laborFee: 0 },
+        '滚轴': { partFee: 25, laborFee: 100 },
+        '蓝牙板': { partFee: 50, laborFee: 100 },
+        '外壳': { partFee: 80, laborFee: 100 },
+        '传感板': { partFee: 20, laborFee: 100 },
+        '按键板': { partFee: 50, laborFee: 100 },
+        '转接板': { partFee: 50, laborFee: 100 },
+      },
+    };
+
+    // ========== 状态 ==========
+    let isAdmin = false;
+    let currentUserRole = '';
+    let currentUserId = null;
+    let currentLoginName = '';
+    let currentUsername = '';
+
+    // ========== 设备数据操作 ==========
+    function dbToDevice(d) {
+      return {
+        id: d.id,
+        customerId: d.customer_id || '',
+        model: d.model || '',
+        sn: d.sn || '',
+        mac: d.mac || '',
+        purchaseDate: d.purchase_date || '',
+        parts: d.parts || '',
+        repairFee: d.repair_fee || '',
+        returnTracking: d.return_tracking || '',
+        sendTracking: d.send_tracking || '',
+        warrantyType: d.warranty_type || '',
+        registerDate: d.register_date || '',
+        faultDesc: d.fault_desc || '',
+        repairStatus: d.repair_status || '已收件',
+        remark: d.remark || ''
+      };
+    }
+
+    function deviceToDb(device) {
+      return {
+        customer_id: device.customerId || '',
+        model: device.model || '',
+        sn: device.sn || null,
+        mac: device.mac || null,
+        purchase_date: device.purchaseDate || null,
+        parts: device.parts || '',
+        repair_fee: device.repairFee || '',
+        return_tracking: device.returnTracking || '',
+        send_tracking: device.sendTracking || '',
+        warranty_type: device.warrantyType || '',
+        register_date: device.registerDate || null,
+        fault_desc: device.faultDesc || '',
+        repair_status: device.repairStatus || '已收件',
+        remark: device.remark || ''
+      };
+    }
+
+    async function loadDevicesFromCloud() {
+      const res = await supabase.from('devices').select('*').order('id', { ascending: false });
+      if (res.error) throw res.error;
+      devices = (res.data || []).map(dbToDevice);
+      console.log(`已从云端加载 ${devices.length} 条设备数据`);
+      return devices;
+    }
+
+    async function saveDevice(device, isEdit) {
+      try {
+        const row = deviceToDb(device);
+        let res;
+        if (isEdit && device.id) {
+          res = await supabase.from('devices').update(row).eq('id', device.id);
+        } else {
+          res = await supabase.from('devices').insert([row]);
+        }
+        if (res.error) throw res.error;
+        await loadDevicesFromCloud();
+        return true;
+      } catch (err) {
+        console.error('保存设备失败:', err);
+        alert('保存失败: ' + err.message);
+        return false;
+      }
+    }
+
+    async function addDevice(device) { return saveDevice(device); }
+
+    function getDevice(snOrMac) {
+      const trimmed = snOrMac.replace(/\s/g, '');
+      const normalized = snOrMac.replace(/[\s\-:]/g, '').toUpperCase();
+      return devices.find(d =>
+        d.sn === trimmed ||
+        d.sn === normalized ||
+        d.mac.replace(/[\s\-:]/g, '').toUpperCase() === normalized ||
+        (d.customerId && d.customerId.toUpperCase() === normalized)
+      ) || null;
+    }
+
+    function getDevicesByCustomerId(customerId) {
+      const cid = customerId.trim().toUpperCase();
+      return devices.filter(d => d.customerId && d.customerId.toUpperCase() === cid);
+    }
+
+    function getAllDevices() {
+      return devices;
+    }
+
+    async function deleteDevice(id) {
+      try {
+        const res = await supabase.from('devices').delete().eq('id', id);
+        if (res.error) throw res.error;
+        const idx = devices.findIndex(d => d.id === id);
+        if (idx >= 0) devices.splice(idx, 1);
+        return true;
+      } catch (err) {
+        console.error('删除失败:', err);
+        alert('删除失败: ' + err.message);
+        return false;
+      }
+    }
+
+    // ========== 登录/权限 ==========
+    function showLoginPage() {
+      document.getElementById('loginPage').classList.remove('hidden');
+      document.getElementById('adminPanel').classList.remove('show');
+    }
+    function hideLoginPage() {
+      document.getElementById('loginPage').classList.add('hidden');
+    }
+
+    function updateAdminUI() {
+      if (isAdmin) {
+        hideLoginPage();
+        document.getElementById('adminPanel').classList.add('show');
+        if (currentUserRole === 'admin') {
+          document.getElementById('tabStaffBtn').classList.remove('hidden');
+        } else {
+          document.getElementById('tabStaffBtn').classList.add('hidden');
+          switchAdminTab('devices');
+        }
+        document.getElementById('adminHeaderInfo').textContent =
+          currentUserRole === 'admin' ? '管理员模式' : '操作员：' + (currentUsername || '');
+        refreshAdminTable();
+      } else {
+        document.getElementById('adminPanel').classList.remove('show');
+        showLoginPage();
+      }
+    }
+
+    function switchAdminTab(tab) {
+      const devicesBtn = document.getElementById('tabDevicesBtn');
+      const staffBtn = document.getElementById('tabStaffBtn');
+      const devicesContent = document.getElementById('tabDevicesContent');
+      const staffContent = document.getElementById('tabStaffContent');
+      const btnAddDevice = document.getElementById('btnAddDevice');
+      const btnAddStaff = document.getElementById('btnAddStaff');
+      const btnColSettings = document.getElementById('btnColSettings');
+      if (tab === 'staff') {
+        devicesBtn.classList.remove('active');
+        staffBtn.classList.add('active');
+        devicesContent.style.display = 'none';
+        staffContent.style.display = 'block';
+        btnAddDevice.classList.add('hidden');
+        btnColSettings.classList.add('hidden');
+        btnAddStaff.classList.remove('hidden');
+        refreshStaffTable();
+      } else {
+        staffBtn.classList.remove('active');
+        devicesBtn.classList.add('active');
+        staffContent.style.display = 'none';
+        devicesContent.style.display = 'block';
+        btnAddStaff.classList.add('hidden');
+        btnAddDevice.classList.remove('hidden');
+        btnColSettings.classList.remove('hidden');
+      }
+    }
+
+    // ========== 工具（费用计算等） ==========
+    function parseDate(dateStr) {
+      if (!dateStr) return null;
+      let d = new Date(dateStr);
+      if (!isNaN(d)) return d;
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        let year = parseInt(parts[0], 10);
+        if (year < 100) year += 2000;
+        return new Date(year, parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      }
+      return null;
+    }
+
+    function daysBetween(d1, d2) {
+      return Math.floor(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24));
+    }
+
+    function getWarrantyStatus(device) {
+      const purchaseDate = parseDate(device.purchaseDate);
+      if (!purchaseDate) return 'outOfWarranty';
+      const days = daysBetween(purchaseDate, new Date());
+      if (days <= 15) return 'new';
+      if (days <= 365) return 'inWarranty';
+      return 'outOfWarranty';
+    }
+
+    const PART_SYNONYMS = {
+      '主控板': '主板',
+      '主控制板': '主板',
+      '卡扣': '挡板',
+      '锂电池': '电池',
+      '热敏头': '热敏条',
+      '电源适配器': '充电器',
+      'TL54传感板': '传感板',
+      'TL54按键板': '按键板',
+      'TL54转接板': '转接板',
+      'TL58电源适配器': '充电器',
+      'TL58蓝牙版': '蓝牙板',
+      'TL58蓝牙板': '蓝牙板'
+    };
+
+    const COMPOUND_PARTS = {
+      '主控板电源适配器': ['主板', '充电器']
+    };
+
+    function normalizePart(partName) {
+      partName = partName.trim();
+      if (COMPOUND_PARTS[partName]) return COMPOUND_PARTS[partName];
+      if (PART_SYNONYMS[partName]) return [PART_SYNONYMS[partName]];
+      return [partName];
+    }
+
+    function isFirmwareOnly(partsStr) {
+      if (!partsStr) return false;
+      const parts = partsStr.split(/[;；]/).map(p => p.trim()).filter(Boolean);
+      return parts.length === 1 && parts[0] === '固件';
+    }
+
+    function calcRepairPrice(model, partsStr) {
+      const modelPrices = REPAIR_PRICES[model];
+      if (!modelPrices) return null;
+
+      const rawParts = partsStr ? partsStr.split(/[;；]/).map(p => p.trim()).filter(Boolean) : [];
+      if (rawParts.length === 0) return null;
+
+      const normalizedParts = [];
+      rawParts.forEach(partName => {
+        if (partName === '固件') return;
+        const normalized = normalizePart(partName);
+        normalizedParts.push(...normalized);
+      });
+
+      if (normalizedParts.length === 0) return null;
+
+      const uniqueParts = [...new Set(normalizedParts)];
+
+      let totalPartFee = 0;
+      let maxLaborFee = 0;
+      const details = [];
+
+      uniqueParts.forEach(partName => {
+        let matched = null;
+        for (const [name, price] of Object.entries(modelPrices)) {
+          if (name === partName || name.includes(partName) || partName.includes(name)) {
+            matched = { name, ...price };
+            break;
+          }
+        }
+        if (matched) {
+          totalPartFee += matched.partFee;
+          if (matched.laborFee > maxLaborFee) maxLaborFee = matched.laborFee;
+          details.push({ name: matched.name, partFee: matched.partFee, laborFee: matched.laborFee });
+        }
+      });
+
+      const totalFee = totalPartFee + maxLaborFee;
+      return { details, totalPartFee, laborFee: maxLaborFee, totalFee };
+    }
+
+    // ========== 模态框 ==========
+    function openModal(id) { document.getElementById(id).classList.add('show'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+    // ========== 新增/编辑表单 ==========
+    function renderPartsSelect(model, selectedParts) {
+      const dropdown = document.getElementById('editPartsDropdown');
+      const modelPrices = REPAIR_PRICES[model] || {};
+      const partNames = Object.keys(modelPrices);
+      const allParts = [...partNames, '固件'];
+      const selected = selectedParts ? selectedParts.split(/[;；]/).map(p => p.trim()).filter(Boolean) : [];
+
+      dropdown.innerHTML = allParts.map(name => {
+        const isChecked = selected.some(s => {
+          const normalized = normalizePart(s);
+          return normalized.includes(name) || s === name;
+        }) || selected.includes(name);
+        return `<label class="multi-select-option">
+          <input type="checkbox" value="${name}" ${isChecked ? 'checked' : ''} onchange="updatePartsAndFee()">
+          <span>${name}</span>
+        </label>`;
+      }).join('');
+
+      updatePartsAndFee();
+    }
+
+    function togglePartsDropdown() {
+      const display = document.getElementById('editPartsDisplay');
+      const dropdown = document.getElementById('editPartsDropdown');
+      const isOpen = dropdown.classList.contains('open');
+      dropdown.classList.toggle('open', !isOpen);
+      display.classList.toggle('open', !isOpen);
+    }
+
+    document.addEventListener('click', function(e) {
+      const multi = document.getElementById('editPartsMulti');
+      if (multi && !multi.contains(e.target)) {
+        document.getElementById('editPartsDropdown').classList.remove('open');
+        document.getElementById('editPartsDisplay').classList.remove('open');
+      }
+    });
+
+    function updatePartsAndFee() {
+      const checkboxes = document.querySelectorAll('#editPartsDropdown input:checked');
+      const parts = Array.from(checkboxes).map(cb => cb.value);
+      document.getElementById('editParts').value = parts.join(';');
+
+      const display = document.getElementById('editPartsDisplay');
+      if (parts.length === 0) {
+        display.innerHTML = '<span class="multi-select-placeholder">请选择配件...</span>';
+      } else {
+        display.innerHTML = parts.map(p => `<span class="multi-select-tag">${p}</span>`).join('');
+      }
+
+      const model = document.getElementById('editModel').value;
+      const warrantyType = document.getElementById('editWarrantyType').value;
+      const feeEl = document.getElementById('editFeeDisplay');
+
+      if (parts.length === 0) {
+        feeEl.innerHTML = '<span style="color:var(--text-muted);">-</span>';
+        return;
+      }
+      if (parts.length === 1 && parts[0] === '固件') {
+        feeEl.innerHTML = '<span style="color:var(--success);">无需收费（仅固件升级）</span>';
+        return;
+      }
+      if (warrantyType === '新机换新') {
+        feeEl.innerHTML = '<span style="color:var(--success);">无需收费（新机换新）</span>';
+        return;
+      }
+      if (warrantyType === '保内免费') {
+        feeEl.innerHTML = '<span style="color:var(--success);">无需收费（保内免费）</span>';
+        return;
+      }
+
+      const priceInfo = calcRepairPrice(model, parts.join(';'));
+      if (priceInfo && priceInfo.details.length > 0) {
+        let html = priceInfo.details.map(d => `${d.name} ¥${d.partFee}`).join(' + ');
+        html += ` + 人工 ¥${priceInfo.laborFee}`;
+        html += ` = <span style="color:var(--danger);font-size:1rem;">¥${priceInfo.totalFee}</span>`;
+        feeEl.innerHTML = html;
+      } else {
+        feeEl.innerHTML = '<span style="color:var(--text-muted);">无法计算（配件不在价格表中）</span>';
+      }
+    }
+
+    function openEditForm(mode, id) {
+      const form = document.getElementById('editForm');
+      form.reset();
+      document.getElementById('editMode').value = mode;
+
+      document.getElementById('editId').value = '';
+      if (mode === 'edit' && id) {
+        const d = devices.find(dev => dev.id === id);
+        if (!d) return;
+        document.getElementById('editModalTitle').textContent = '编辑维修记录';
+        document.getElementById('editSubmitBtn').textContent = '保存修改';
+        document.getElementById('editId').value = d.id || '';
+        document.getElementById('editCustomerId').value = d.customerId || '';
+        document.getElementById('editSN').value = d.sn;
+        document.getElementById('editModel').value = d.model;
+        document.getElementById('editMAC').value = d.mac;
+        document.getElementById('editPurchaseDate').value = d.purchaseDate;
+        document.getElementById('editWarrantyType').value = d.warrantyType || '';
+        document.getElementById('editRepairStatus').value = d.repairStatus || '已收件';
+        document.getElementById('editRegisterDate').value = d.registerDate || '';
+        document.getElementById('editReturnTracking').value = d.returnTracking || '';
+        document.getElementById('editSendTracking').value = d.sendTracking || '';
+        document.getElementById('editFaultDesc').value = d.faultDesc || '';
+        document.getElementById('editRemark').value = d.remark || '';
+        renderPartsSelect(d.model, d.parts);
+      } else {
+        document.getElementById('editModalTitle').textContent = '新增维修记录';
+        document.getElementById('editSubmitBtn').textContent = '添加';
+        document.getElementById('editRegisterDate').value = new Date().toISOString().split('T')[0];
+        renderPartsSelect(document.getElementById('editModel').value, '');
+      }
+      openModal('editModal');
+      document.getElementById('editPurchaseDate').dispatchEvent(new Event('change'));
+    }
+
+    document.getElementById('editModel').addEventListener('change', function() {
+      renderPartsSelect(this.value, document.getElementById('editParts').value);
+    });
+
+    document.getElementById('editWarrantyType').addEventListener('change', updatePartsAndFee);
+
+    function calcRepairFeeForSave() {
+      const model = document.getElementById('editModel').value;
+      const parts = document.getElementById('editParts').value.trim();
+      const warrantyType = document.getElementById('editWarrantyType').value;
+      if (!parts) return '';
+      if (parts === '固件') return '0';
+      if (warrantyType === '新机换新' || warrantyType === '保内免费') return '0';
+      const priceInfo = calcRepairPrice(model, parts);
+      if (priceInfo && priceInfo.totalFee > 0) return String(priceInfo.totalFee);
+      return '';
+    }
+
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const editId = document.getElementById('editId').value;
+      const device = {
+        id: editId ? parseInt(editId) : null,
+        customerId: document.getElementById('editCustomerId').value.trim(),
+        model: document.getElementById('editModel').value,
+        sn: document.getElementById('editSN').value.trim(),
+        mac: document.getElementById('editMAC').value.trim().toUpperCase(),
+        purchaseDate: document.getElementById('editPurchaseDate').value,
+        parts: document.getElementById('editParts').value.trim(),
+        repairFee: calcRepairFeeForSave(),
+        warrantyType: document.getElementById('editWarrantyType').value,
+        repairStatus: document.getElementById('editRepairStatus').value,
+        registerDate: document.getElementById('editRegisterDate').value,
+        returnTracking: document.getElementById('editReturnTracking').value.trim(),
+        sendTracking: document.getElementById('editSendTracking').value.trim(),
+        faultDesc: document.getElementById('editFaultDesc').value.trim(),
+        remark: document.getElementById('editRemark').value.trim()
+      };
+
+      const mode = document.getElementById('editMode').value;
+      const ok = await saveDevice(device, mode === 'edit');
+      if (ok) {
+        closeModal('editModal');
+        if (document.getElementById('adminPanel').classList.contains('show')) {
+          refreshAdminTable();
+        }
+      }
+    });
+
+    document.getElementById('editPurchaseDate').addEventListener('change', (e) => {
+      const dateStr = e.target.value;
+      if (!dateStr) return;
+      const purchaseDate = new Date(dateStr);
+      const now = new Date();
+      const days = Math.floor((now - purchaseDate) / (1000 * 60 * 60 * 24));
+      const warrantySelect = document.getElementById('editWarrantyType');
+      if (days <= 15) {
+        warrantySelect.value = '新机换新';
+      } else if (days <= 365) {
+        warrantySelect.value = '保内免费';
+      } else {
+        warrantySelect.value = '保外收费';
+      }
+    });
+
+    // ========== 管理面板表格 ==========
+    function getFilteredDevices() {
+      let filtered = getAllDevices();
+      const customerIdFilter = (document.getElementById('filterCustomerId').value || '').trim().toUpperCase();
+      const snFilter = (document.getElementById('filterSN').value || '').trim().toUpperCase();
+      const modelFilter = document.getElementById('filterModel').value;
+      const statusFilter = document.getElementById('filterStatus').value;
+      const warrantyFilter = document.getElementById('filterWarranty').value;
+      const trackingFilter = (document.getElementById('filterTracking').value || '').trim().toUpperCase();
+
+      if (customerIdFilter) {
+        filtered = filtered.filter(d => (d.customerId || '').toUpperCase().includes(customerIdFilter));
+      }
+      if (snFilter) {
+        filtered = filtered.filter(d =>
+          d.sn.toUpperCase().includes(snFilter) ||
+          d.mac.replace(/[\s\-:]/g, '').toUpperCase().includes(snFilter.replace(/[\s\-:]/g, ''))
+        );
+      }
+      if (modelFilter === '__empty__') { filtered = filtered.filter(d => !d.model); }
+      else if (modelFilter) { filtered = filtered.filter(d => d.model === modelFilter); }
+      if (statusFilter) { filtered = filtered.filter(d => d.repairStatus === statusFilter); }
+      if (warrantyFilter === '__empty__') { filtered = filtered.filter(d => !d.warrantyType); }
+      else if (warrantyFilter) { filtered = filtered.filter(d => d.warrantyType === warrantyFilter); }
+      if (trackingFilter) {
+        filtered = filtered.filter(d =>
+          (d.returnTracking && d.returnTracking.toUpperCase().includes(trackingFilter)) ||
+          (d.sendTracking && d.sendTracking.toUpperCase().includes(trackingFilter))
+        );
+      }
+      return filtered;
+    }
+
+    const ALL_COLUMNS = [
+      { key: 'customerId', label: '客户编号', visible: true },
+      { key: 'model', label: '型号', visible: true },
+      { key: 'sn', label: '序列号', visible: true },
+      { key: 'mac', label: 'MAC地址', visible: true },
+      { key: 'purchaseDate', label: '购买日期', visible: true },
+      { key: 'warrantyType', label: '维保选择', visible: true },
+      { key: 'parts', label: '需更换配件', visible: true },
+      { key: 'repairFee', label: '需付费', visible: true },
+      { key: 'faultDesc', label: '故障描述', visible: true },
+      { key: 'repairStatus', label: '维修状态', visible: true },
+      { key: 'registerDate', label: '登记日期', visible: true },
+      { key: 'returnTracking', label: '寄回快递', visible: false },
+      { key: 'sendTracking', label: '寄出快递', visible: false },
+      { key: 'remark', label: '备注', visible: false },
+    ];
+
+    function getColumnConfig() {
+      try {
+        const saved = localStorage.getItem('col_config');
+        if (saved) {
+          const config = JSON.parse(saved);
+          const existingKeys = config.map(c => c.key);
+          ALL_COLUMNS.forEach(col => {
+            if (!existingKeys.includes(col.key)) config.push({ ...col });
+          });
+          return config;
+        }
+      } catch(e) {}
+      return ALL_COLUMNS.map(c => ({ ...c }));
+    }
+
+    function saveColumnConfig(config) {
+      localStorage.setItem('col_config', JSON.stringify(config));
+    }
+
+    let columnConfig = getColumnConfig();
+
+    function getVisibleColumns() {
+      return columnConfig.filter(c => c.visible);
+    }
+
+    function renderCellValue(d, key) {
+      switch(key) {
+        case 'sn': return `<span class="sn-cell">${d.sn}</span>`;
+        case 'warrantyType': return d.warrantyType ? `<span class="status-badge ${d.warrantyType}">${d.warrantyType}</span>` : '-';
+        case 'repairFee': return d.repairFee ? `<span style="color:var(--danger);font-weight:600;">¥${d.repairFee}</span>` : '-';
+        case 'repairStatus': return `<span class="status-badge ${d.repairStatus || '已收件'}">${d.repairStatus || '已收件'}</span>`;
+        case 'faultDesc': return `<span style="max-width:150px;display:inline-block;overflow:hidden;text-overflow:ellipsis;" title="${(d[key]||'').replace(/"/g,'&quot;')}">${d[key] || '-'}</span>`;
+        case 'remark': return `<span style="max-width:120px;display:inline-block;overflow:hidden;text-overflow:ellipsis;" title="${(d[key]||'').replace(/"/g,'&quot;')}">${d[key] || '-'}</span>`;
+        default: return d[key] || '-';
+      }
+    }
+
+    let expandedRows = new Set();
+
+    function toggleExpandRow(id) {
+      if (expandedRows.has(id)) expandedRows.delete(id);
+      else expandedRows.add(id);
+      refreshAdminTable();
+    }
+
+    function renderExpandContent(d) {
+      const allFields = [
+        { label: '客户编号', value: d.customerId },
+        { label: '型号', value: d.model },
+        { label: '序列号', value: d.sn },
+        { label: 'MAC地址', value: d.mac },
+        { label: '购买日期', value: d.purchaseDate },
+        { label: '维保选择', value: d.warrantyType },
+        { label: '需更换配件', value: d.parts },
+        { label: '需付费', value: d.repairFee ? '¥' + d.repairFee : '' },
+        { label: '故障描述', value: d.faultDesc },
+        { label: '维修状态', value: d.repairStatus },
+        { label: '登记日期', value: d.registerDate },
+        { label: '寄回快递', value: d.returnTracking },
+        { label: '寄出快递', value: d.sendTracking },
+        { label: '备注', value: d.remark },
+      ];
+      return `<div class="expand-content">${allFields.map(f =>
+        `<div class="expand-item"><span class="expand-label">${f.label}：</span><span class="expand-value">${f.value || '-'}</span></div>`
+      ).join('')}</div>`;
+    }
+
+    function refreshAdminTable() {
+      const allDevices = getAllDevices();
+      const filtered = getFilteredDevices();
+      const showing = filtered.slice(0, 200);
+      const visCols = getVisibleColumns();
+
+      document.getElementById('adminStatsInfo').innerHTML =
+        `总计 <strong>${allDevices.length}</strong> 条` +
+        (filtered.length !== allDevices.length ? `，筛选 <strong>${filtered.length}</strong> 条` : '') +
+        (filtered.length > 200 ? `，显示前 200 条` : '');
+
+      const thead = document.querySelector('#adminTable thead tr');
+      thead.innerHTML = visCols.map(c => `<th>${c.label}<div class="col-resizer"></div></th>`).join('') + '<th>操作</th>';
+
+      document.getElementById('adminTableBody').innerHTML = showing.map(d => {
+        const isExpanded = expandedRows.has(d.id);
+        let row = `<tr>
+          ${visCols.map(c => `<td>${renderCellValue(d, c.key)}</td>`).join('')}
+          <td>
+            <div class="action-btns">
+              <span class="expand-toggle" onclick="toggleExpandRow(${d.id})">${isExpanded ? '▲ 收起' : '▼ 展开'}</span>
+              <button class="action-btn" onclick="openEditForm('edit',${d.id})">编辑</button>
+              <button class="action-btn del" onclick="deleteDeviceUI(${d.id})">删除</button>
+            </div>
+          </td>
+        </tr>`;
+        if (isExpanded) {
+          row += `<tr class="expand-row"><td colspan="${visCols.length + 1}">${renderExpandContent(d)}</td></tr>`;
+        }
+        return row;
+      }).join('');
+      setTimeout(applyColWidths, 0);
+    }
+
+    function clearFilters() {
+      document.getElementById('filterCustomerId').value = '';
+      document.getElementById('filterSN').value = '';
+      document.getElementById('filterModel').value = '';
+      document.getElementById('filterStatus').value = '';
+      document.getElementById('filterWarranty').value = '';
+      document.getElementById('filterTracking').value = '';
+      refreshAdminTable();
+    }
+
+    ['filterCustomerId', 'filterSN', 'filterTracking'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => refreshAdminTable());
+    });
+    ['filterModel', 'filterStatus', 'filterWarranty'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => refreshAdminTable());
+    });
+
+    window.deleteDeviceUI = async function(id) {
+      if (confirm('确定删除该记录？')) {
+        const ok = await deleteDevice(id);
+        if (ok) refreshAdminTable();
+      }
+    };
+
+    // ========== 列设置弹窗 ==========
+    let tempColConfig = [];
+    let dragIdx = null;
+
+    function openColSettings() {
+      tempColConfig = columnConfig.map(c => ({ ...c }));
+      renderColSettingsList();
+      document.getElementById('colSettingsOverlay').classList.add('show');
+    }
+
+    function renderColSettingsList() {
+      const list = document.getElementById('colSettingsList');
+      list.innerHTML = tempColConfig.map((c, i) => `
+        <div class="col-item" draggable="true" data-idx="${i}"
+          ondragstart="colDragStart(event,${i})" ondragover="colDragOver(event)" ondrop="colDrop(event,${i})">
+          <span style="cursor:grab;color:var(--text-muted);">☰</span>
+          <input type="checkbox" ${c.visible ? 'checked' : ''} onchange="tempColConfig[${i}].visible=this.checked" id="colChk${i}">
+          <label for="colChk${i}">${c.label}</label>
+        </div>
+      `).join('');
+    }
+
+    window.colDragStart = function(e, idx) { dragIdx = idx; e.dataTransfer.effectAllowed = 'move'; };
+    window.colDragOver = function(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+    window.colDrop = function(e, toIdx) {
+      e.preventDefault();
+      if (dragIdx === null || dragIdx === toIdx) return;
+      const item = tempColConfig.splice(dragIdx, 1)[0];
+      tempColConfig.splice(toIdx, 0, item);
+      dragIdx = null;
+      renderColSettingsList();
+    };
+
+    function applyColSettings() {
+      columnConfig = tempColConfig.map(c => ({ ...c }));
+      saveColumnConfig(columnConfig);
+      document.getElementById('colSettingsOverlay').classList.remove('show');
+      refreshAdminTable();
+    }
+
+    function resetColSettings() {
+      tempColConfig = ALL_COLUMNS.map(c => ({ ...c }));
+      renderColSettingsList();
+    }
+
+    document.getElementById('colSettingsOverlay').addEventListener('click', function(e) {
+      if (e.target === this) this.classList.remove('show');
+    });
+
+    // ========== 列宽拖拽 ==========
+    function getColWidthKey() {
+      return 'col_widths_' + (currentLoginName || 'default');
+    }
+    function loadColWidths() {
+      try { return JSON.parse(localStorage.getItem(getColWidthKey())) || {}; } catch(e) { return {}; }
+    }
+    function saveColWidths(widths) {
+      localStorage.setItem(getColWidthKey(), JSON.stringify(widths));
+    }
+    function applyColWidths() {
+      const widths = loadColWidths();
+      const ths = document.querySelectorAll('#adminTable thead th');
+      ths.forEach(th => {
+        const label = th.textContent.trim();
+        if (widths[label]) {
+          th.style.width = widths[label] + 'px';
+          th.style.minWidth = widths[label] + 'px';
+        }
+      });
+    }
+
+    (function initColResize() {
+      let resizing = null;
+      document.addEventListener('mousedown', function(e) {
+        if (!e.target.classList.contains('col-resizer')) return;
+        const th = e.target.parentElement;
+        resizing = { th, startX: e.pageX, startW: th.offsetWidth };
+        e.target.classList.add('active');
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', function(e) {
+        if (!resizing) return;
+        const w = Math.max(40, resizing.startW + (e.pageX - resizing.startX));
+        resizing.th.style.width = w + 'px';
+        resizing.th.style.minWidth = w + 'px';
+      });
+      document.addEventListener('mouseup', function() {
+        if (resizing) {
+          resizing.th.querySelector('.col-resizer').classList.remove('active');
+          const widths = loadColWidths();
+          const label = resizing.th.textContent.trim();
+          widths[label] = resizing.th.offsetWidth;
+          saveColWidths(widths);
+          resizing = null;
+        }
+      });
+    })();
+
+    function exportExcel() {
+      const filtered = getFilteredDevices();
+      if (filtered.length === 0) { alert('没有可导出的数据'); return; }
+      const headers = ['客户编号','型号','序列号','MAC地址','购买日期','维保选择','需更换配件','需付费','故障描述','维修状态','登记日期','寄回快递','寄出快递','备注'];
+      const keys = ['customerId','model','sn','mac','purchaseDate','warrantyType','parts','repairFee','faultDesc','repairStatus','registerDate','returnTracking','sendTracking','remark'];
+      let csv = '\uFEFF' + headers.join(',') + '\n';
+      filtered.forEach(d => {
+        csv += keys.map(k => {
+          let v = (d[k] || '').toString().replace(/"/g, '""');
+          if (v.includes(',') || v.includes('\n') || v.includes('"')) v = `"${v}"`;
+          return v;
+        }).join(',') + '\n';
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `维修记录_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ========== 修改密码 ==========
+    document.getElementById('pwdForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const oldPwd = document.getElementById('oldPwd').value;
+      const newPwd = document.getElementById('newPwd').value;
+      const confirmPwd = document.getElementById('confirmPwd').value;
+      const errorEl = document.getElementById('pwdError');
+
+      if (newPwd.length < 6) {
+        errorEl.textContent = '新密码至少6位';
+        return;
+      }
+      if (newPwd !== confirmPwd) {
+        errorEl.textContent = '两次密码不一致';
+        return;
+      }
+
+      try {
+        if (!currentUserId) { errorEl.textContent = '未登录'; return; }
+        const checkRes = await supabase.from('staff')
+          .select('id,password')
+          .eq('id', currentUserId);
+        if (checkRes.error) throw checkRes.error;
+        const me = checkRes.data && checkRes.data[0];
+        if (!me || me.password !== oldPwd) {
+          errorEl.textContent = '当前密码错误';
+          return;
+        }
+        const updateRes = await supabase.from('staff')
+          .update({ password: newPwd })
+          .eq('id', currentUserId);
+        if (updateRes.error) throw updateRes.error;
+        closeModal('pwdModal');
+        alert('密码修改成功！');
+      } catch (err) {
+        errorEl.textContent = '修改失败：' + (err.message || '网络错误');
+      }
+    });
+
+    // ========== 人员管理 ==========
+    let staffList = [];
+
+    async function loadStaff() {
+      try {
+        const res = await supabase.from('staff').select('*').order('created_at', { ascending: true });
+        if (res.error) throw res.error;
+        staffList = res.data || [];
+      } catch (err) {
+        console.error('加载人员失败:', err);
+      }
+    }
+
+    function refreshStaffTable() {
+      loadStaff().then(() => {
+        const tbody = document.getElementById('staffTableBody');
+        const roleLabel = { admin: '管理员', operator: '操作员' };
+        tbody.innerHTML = staffList.map(s => `
+          <tr>
+            <td>${s.username}</td>
+            <td>${s.name || '-'}</td>
+            <td>${roleLabel[s.role] || s.role}</td>
+            <td>${s.is_active ? '<span style="color:var(--success);">启用</span>' : '<span style="color:var(--danger);">禁用</span>'}</td>
+            <td>${s.created_at ? new Date(s.created_at).toLocaleDateString('zh-CN') : '-'}</td>
+            <td>
+              <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 8px;margin-right:4px;" onclick="editStaffUI(${s.id})">编辑</button>
+              <button class="btn btn-secondary" style="font-size:0.72rem;padding:3px 8px;margin-right:4px;" onclick="resetStaffPwdUI(${s.id},'${s.username}')">重置密码</button>
+              ${s.username !== '000' ? `<button class="btn" style="font-size:0.72rem;padding:3px 8px;color:var(--danger);border:1px solid var(--danger);" onclick="deleteStaffUI(${s.id},'${s.username}')">删除</button>` : ''}
+            </td>
+          </tr>
+        `).join('');
+        document.getElementById('staffStatsInfo').textContent = `共 ${staffList.length} 名人员`;
+      });
+    }
+
+    function openStaffForm(mode, staffId) {
+      document.getElementById('staffEditMode').value = mode;
+      document.getElementById('staffEditId').value = staffId || '';
+      document.getElementById('staffForm').reset();
+
+      if (mode === 'edit' && staffId) {
+        const s = staffList.find(x => x.id === staffId);
+        if (s) {
+          document.getElementById('staffUsername').value = s.username;
+          document.getElementById('staffName').value = s.name || '';
+          document.getElementById('staffPassword').value = s.password;
+          document.getElementById('staffRole').value = s.role;
+          document.getElementById('staffActive').value = String(s.is_active);
+          document.getElementById('staffUsername').readOnly = (s.username === '000');
+        }
+        document.getElementById('staffModalTitle').textContent = '编辑人员';
+      } else {
+        document.getElementById('staffUsername').readOnly = false;
+        document.getElementById('staffModalTitle').textContent = '新增人员';
+      }
+      openModal('staffModal');
+    }
+
+    document.getElementById('staffForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const mode = document.getElementById('staffEditMode').value;
+      const staffId = document.getElementById('staffEditId').value;
+      const data = {
+        username: document.getElementById('staffUsername').value.trim(),
+        name: document.getElementById('staffName').value.trim(),
+        password: document.getElementById('staffPassword').value,
+        role: document.getElementById('staffRole').value,
+        is_active: document.getElementById('staffActive').value === 'true',
+      };
+      if (!data.username || !data.password) {
+        alert('工号和密码不能为空');
+        return;
+      }
+      try {
+        if (mode === 'edit' && staffId) {
+          const res = await supabase.from('staff').update(data).eq('id', parseInt(staffId));
+          if (res.error) throw res.error;
+        } else {
+          const res = await supabase.from('staff').insert([data]);
+          if (res.error) throw res.error;
+        }
+        closeModal('staffModal');
+        refreshStaffTable();
+      } catch (err) {
+        alert('保存失败：' + (err.message || '网络错误'));
+      }
+    });
+
+    window.editStaffUI = function(id) {
+      openStaffForm('edit', id);
+    };
+
+    window.resetStaffPwdUI = async function(id, username) {
+      if (confirm(`确定将 "${username}" 的密码重置为 000000？`)) {
+        try {
+          const res = await supabase.from('staff').update({ password: '000000' }).eq('id', id);
+          if (res.error) throw res.error;
+          alert('密码已重置为 000000');
+        } catch (err) {
+          alert('重置失败：' + (err.message || '网络错误'));
+        }
+      }
+    };
+
+    window.deleteStaffUI = async function(id, username) {
+      if (confirm(`确定删除人员 "${username}"？`)) {
+        try {
+          const res = await supabase.from('staff').delete().eq('id', id);
+          if (res.error) throw res.error;
+          refreshStaffTable();
+        } catch (err) {
+          alert('删除失败：' + (err.message || '网络错误'));
+        }
+      }
+    };
+
+    // ========== 管理员登录 ==========
+    document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl = document.getElementById('loginError');
+      const btn = e.target.querySelector('.login-btn');
+      const username = document.getElementById('adminUsername').value.trim();
+      const password = document.getElementById('adminPassword').value;
+      errorEl.textContent = '';
+      btn.disabled = true;
+      btn.querySelector('.login-btn-text').textContent = '验证中...';
+
+      try {
+        const res = await supabase.from('staff')
+          .select('*')
+          .eq('username', username)
+          .eq('is_active', true);
+        if (res.error) throw res.error;
+        if (!res.data || res.data.length === 0) {
+          errorEl.textContent = '工号不存在或已被禁用';
+          return;
+        }
+        const user = res.data[0];
+        if (user.password !== password) {
+          errorEl.textContent = '密码错误';
+          return;
+        }
+        isAdmin = true;
+        currentUserRole = user.role;
+        currentUserId = user.id;
+        currentLoginName = user.username;
+        currentUsername = user.name || user.username;
+        updateAdminUI();
+      } catch (err) {
+        errorEl.textContent = '登录失败：' + (err.message || '网络错误');
+      } finally {
+        btn.disabled = false;
+        btn.querySelector('.login-btn-text').textContent = '登 录';
+      }
+    });
+
+    function doAdminLogout() {
+      if (confirm('确定退出？')) {
+        isAdmin = false;
+        currentUserRole = '';
+        currentUserId = null;
+        currentLoginName = '';
+        currentUsername = '';
+        switchAdminTab('devices');
+        document.getElementById('adminLoginForm').reset();
+        document.getElementById('loginError').textContent = '';
+        updateAdminUI();
+      }
+    }
+
+    document.getElementById('adminLogoutBtn').addEventListener('click', doAdminLogout);
+
+    document.getElementById('adminChangePwdBtn').addEventListener('click', () => {
+      document.getElementById('pwdForm').reset();
+      document.getElementById('pwdError').textContent = '';
+      openModal('pwdModal');
+    });
+
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal(modal.id);
+      });
+    });
+
+    // ========== 页面初始化 ==========
+    (async function init() {
+      try {
+        await loadDevicesFromCloud();
+      } catch (err) {
+        console.error('初始数据加载失败:', err);
+      }
+      showLoginPage();
+    })();
+  </script>
+</body>
+</html>
