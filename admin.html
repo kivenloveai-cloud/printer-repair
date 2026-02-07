@@ -438,13 +438,15 @@
       padding: 12px 16px;
       background: var(--bg);
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
       gap: 8px 20px;
       font-size: 0.8rem;
+      overflow: visible;
     }
-    .expand-item { display: flex; gap: 6px; }
-    .expand-label { color: var(--text-muted); white-space: nowrap; min-width: 70px; }
-    .expand-value { color: var(--text); word-break: break-all; }
+    .expand-item { display: flex; gap: 6px; min-height: 0; }
+    .expand-item-full { grid-column: 1 / -1; }
+    .expand-label { color: var(--text-muted); white-space: nowrap; min-width: 80px; flex-shrink: 0; }
+    .expand-value { color: var(--text); word-break: break-all; white-space: pre-wrap; line-height: 1.5; }
     .expand-toggle {
       cursor: pointer;
       color: var(--primary);
@@ -605,7 +607,11 @@
           </div>
           <div class="form-group">
             <label class="form-label">购买日期 *</label>
-            <input type="date" class="form-input" id="editPurchaseDate" onclick="this.showPicker&&this.showPicker()">
+            <div style="display:flex;gap:4px;align-items:center;">
+              <input type="text" class="form-input" id="editPurchaseDate" placeholder="粘贴或输入日期" style="flex:1;">
+              <button type="button" class="btn btn-secondary" style="padding:8px 10px;font-size:0.85rem;white-space:nowrap;" onclick="var el=document.getElementById('editPurchaseDatePicker');el.showPicker?el.showPicker():el.click()">📅</button>
+              <input type="date" id="editPurchaseDatePicker" style="position:absolute;opacity:0;width:0;height:0;pointer-events:none;" onchange="document.getElementById('editPurchaseDate').value=this.value;document.getElementById('editPurchaseDate').dispatchEvent(new Event('change'))">
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label">维保选择</label>
@@ -630,7 +636,11 @@
           </div>
           <div class="form-group">
             <label class="form-label">登记日期</label>
-            <input type="date" class="form-input" id="editRegisterDate" onclick="this.showPicker&&this.showPicker()">
+            <div style="display:flex;gap:4px;align-items:center;">
+              <input type="text" class="form-input" id="editRegisterDate" placeholder="粘贴或输入日期" style="flex:1;">
+              <button type="button" class="btn btn-secondary" style="padding:8px 10px;font-size:0.85rem;white-space:nowrap;" onclick="var el=document.getElementById('editRegisterDatePicker');el.showPicker?el.showPicker():el.click()">📅</button>
+              <input type="date" id="editRegisterDatePicker" style="position:absolute;opacity:0;width:0;height:0;pointer-events:none;" onchange="document.getElementById('editRegisterDate').value=this.value;document.getElementById('editRegisterDate').dispatchEvent(new Event('change'))">
+            </div>
           </div>
           <div class="form-group" style="grid-column:span 2;">
             <label class="form-label">需更换配件</label>
@@ -842,7 +852,7 @@
   <div class="modal-overlay" id="pwdModal">
     <div class="modal" style="max-width: 400px;">
       <div class="modal-header">
-        <h3 class="modal-title">修改管理员密码</h3>
+        <h3 class="modal-title" id="pwdModalTitle">修改密码</h3>
         <button class="modal-close" onclick="closeModal('pwdModal')">&times;</button>
       </div>
       <form id="pwdForm">
@@ -1388,7 +1398,7 @@
         document.getElementById('editSN').value = d.sn;
         document.getElementById('editModel').value = d.model;
         document.getElementById('editMAC').value = d.mac;
-        document.getElementById('editPurchaseDate').value = d.purchaseDate;
+        document.getElementById('editPurchaseDate').value = d.purchaseDate || '';
         document.getElementById('editWarrantyType').value = d.warrantyType || '';
         document.getElementById('editRepairStatus').value = d.repairStatus || '已收件';
         document.getElementById('editRegisterDate').value = d.registerDate || '';
@@ -1401,6 +1411,7 @@
         document.getElementById('editModalTitle').textContent = '新增维修记录';
         document.getElementById('editSubmitBtn').textContent = '添加';
         document.getElementById('editRegisterDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('editPurchaseDate').value = '';
         renderPartsSelect(document.getElementById('editModel').value, '');
       }
       openModal('editModal');
@@ -1456,6 +1467,68 @@
       }
     });
 
+    // 日期智能识别：支持粘贴各种格式自动转换
+    function smartParseDate(str) {
+      if (!str) return '';
+      str = str.trim().replace(/[年月]/g, '-').replace(/[日号]/g, '').replace(/\//g, '-').replace(/\./g, '-');
+      // 处理 26-02-05 这种短格式
+      let parts = str.split('-');
+      if (parts.length === 3) {
+        let y = parseInt(parts[0], 10), m = parseInt(parts[1], 10), d = parseInt(parts[2], 10);
+        if (y < 100) y += 2000;
+        if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+          return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        }
+      }
+      // 处理 20260205 这种纯数字
+      if (/^\d{8}$/.test(str)) {
+        return `${str.slice(0,4)}-${str.slice(4,6)}-${str.slice(6,8)}`;
+      }
+      // 尝试标准解析
+      const d = new Date(str);
+      if (!isNaN(d)) return d.toISOString().split('T')[0];
+      return '';
+    }
+
+    function bindDateSmartInput(inputId) {
+      const el = document.getElementById(inputId);
+      // 粘贴事件
+      el.addEventListener('paste', (e) => {
+        const text = (e.clipboardData || window.clipboardData).getData('text');
+        const parsed = smartParseDate(text);
+        if (parsed) {
+          e.preventDefault();
+          el.value = parsed;
+          el.dispatchEvent(new Event('change'));
+        }
+      });
+      // 手动输入或失焦时自动解析
+      el.addEventListener('blur', () => {
+        const v = el.value;
+        if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+          const parsed = smartParseDate(v);
+          if (parsed) {
+            el.value = parsed;
+            el.dispatchEvent(new Event('change'));
+          }
+        }
+      });
+      // input 事件（处理直接输入或粘贴后）
+      el.addEventListener('input', () => {
+        const v = el.value;
+        // 如果用户粘贴了非标准格式且长度足够，尝试解析
+        if (v && v.length >= 6 && !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+          const parsed = smartParseDate(v);
+          if (parsed) {
+            el.value = parsed;
+            el.dispatchEvent(new Event('change'));
+          }
+        }
+      });
+    }
+    bindDateSmartInput('editPurchaseDate');
+    bindDateSmartInput('editRegisterDate');
+
     document.getElementById('editPurchaseDate').addEventListener('change', (e) => {
       const dateStr = e.target.value;
       if (!dateStr) return;
@@ -1470,6 +1543,7 @@
       } else {
         warrantySelect.value = '保外收费';
       }
+      updatePartsAndFee();
     });
 
     // ========== 管理面板表格 ==========
@@ -1584,9 +1658,11 @@
         { label: '寄出快递', value: d.sendTracking },
         { label: '备注', value: d.remark },
       ];
-      return `<div class="expand-content">${allFields.map(f =>
-        `<div class="expand-item"><span class="expand-label">${f.label}：</span><span class="expand-value">${f.value || '-'}</span></div>`
-      ).join('')}</div>`;
+      const longFields = ['需更换配件', '故障描述', '备注'];
+      return `<div class="expand-content">${allFields.map(f => {
+        const isLong = longFields.includes(f.label) && f.value && f.value.length > 20;
+        return `<div class="expand-item${isLong ? ' expand-item-full' : ''}"><span class="expand-label">${f.label}：</span><span class="expand-value">${f.value || '-'}</span></div>`;
+      }).join('')}</div>`;
     }
 
     function refreshAdminTable() {
@@ -1981,6 +2057,8 @@
     document.getElementById('adminChangePwdBtn').addEventListener('click', () => {
       document.getElementById('pwdForm').reset();
       document.getElementById('pwdError').textContent = '';
+      document.getElementById('pwdModalTitle').textContent =
+        currentUserRole === 'admin' ? '修改管理员密码' : '修改操作员密码';
       openModal('pwdModal');
     });
 

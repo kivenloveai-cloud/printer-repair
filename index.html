@@ -192,7 +192,7 @@
 
     <div class="input-area">
       <div class="input-row">
-        <textarea id="userInput" rows="1" placeholder="输入序列号、MAC地址或客户编号..."></textarea>
+        <textarea id="userInput" rows="1" placeholder="输入序列号、客户编号或快递单号..."></textarea>
         <button id="sendBtn">发送</button>
       </div>
       <div class="quick-asks">
@@ -339,7 +339,9 @@
         d.sn === trimmed ||
         d.sn === normalized ||
         d.mac.replace(/[\s\-:]/g, '').toUpperCase() === normalized ||
-        (d.customerId && d.customerId.toUpperCase() === normalized)
+        (d.customerId && d.customerId.toUpperCase() === normalized) ||
+        (d.returnTracking && d.returnTracking.toUpperCase() === normalized) ||
+        (d.sendTracking && d.sendTracking.toUpperCase() === normalized)
       ) || null;
     }
 
@@ -464,7 +466,7 @@
       else if (status === 'inWarranty') statusTag = '<span class="tag free">保内 · 免费维修</span>';
       else statusTag = '<span class="tag price">已过保 · 需付费</span>';
 
-      let info = `设备信息：\n${device.customerId ? '客户编号：' + device.customerId + '\n' : ''}型号：${device.model || '未知'}\n序列号：${device.sn}\nMAC：${device.mac}\n购买日期：${dateStr}（${days}天前）\n\n${statusTag}`;
+      let info = `设备信息：\n${device.customerId ? '客户编号：' + device.customerId + '\n' : ''}型号：${device.model || '未知'}\n序列号：${device.sn}\nMAC：${device.mac}\n购买日期：${dateStr}（${days}天前）\n维修状态：${device.repairStatus || '未知'}${device.returnTracking ? '\n寄回快递：' + device.returnTracking : ''}${device.sendTracking ? '\n寄出快递：' + device.sendTracking : ''}\n\n${statusTag}`;
 
       if (device.parts && device.parts.trim()) {
         info += `\n\n需更换配件：${device.parts}`;
@@ -534,9 +536,10 @@
     }
 
     function isRepairRelated(text) {
-      const keywords = ['维修', '修理', '报价', '价格', '多少钱', '费用', '配件', '保修', '序列号', 'MAC', 'SN', '查询', '型号', '打印机', '机器', '设备', '坏', '故障', '换', '修', '客户', '编号'];
+      const keywords = ['维修', '修理', '报价', '价格', '多少钱', '费用', '配件', '保修', '序列号', 'MAC', 'SN', '查询', '型号', '打印机', '机器', '设备', '坏', '故障', '换', '修', '客户', '编号', '快递', '单号', '物流'];
       const t = text.replace(/[\s\-:]/g, '').toUpperCase();
       if (/^[0-9]{8,12}$/.test(text.trim())) return true;
+      if (/^[A-Za-z0-9]{10,20}$/.test(text.trim())) return true;
       if (/^([0-9A-Fa-f]{2}[:\-]?){5}[0-9A-Fa-f]{2}$/.test(text.replace(/\s/g, ''))) return true;
       if (detectModel(text)) return true;
       return keywords.some(k => t.includes(k.toUpperCase()));
@@ -544,9 +547,9 @@
 
     function getGreeting() {
       const greetings = [
-        `您好！我是您的打印机维修顾问，很高兴为您服务。\n\n请告诉我您打印机的【序列号】、【MAC地址】或【客户编号】，我来帮您查询维修信息和报价。`,
-        `您好！欢迎使用打印机维修报价系统。\n\n请提供您的打印机序列号、MAC地址或客户编号，我将为您查询相关信息。`,
-        `Hi！我是打印机维修助手。\n\n想了解维修价格或保修状态吗？请把您的打印机序列号、MAC地址或客户编号告诉我，我来帮您查一下。`
+        `您好！我是您的打印机维修顾问，很高兴为您服务。\n\n请告诉我您打印机的【序列号】、【客户编号】或【快递单号】，我来帮您查询维修信息和报价。`,
+        `您好！欢迎使用打印机维修报价系统。\n\n请提供您的打印机序列号、客户编号或快递单号，我将为您查询相关信息。`,
+        `Hi！我是打印机维修助手。\n\n想了解维修价格或保修状态吗？请把您的打印机序列号、客户编号或快递单号告诉我，我来帮您查一下。`
       ];
       return pick(greetings);
     }
@@ -564,34 +567,34 @@
     function askForSerialNumber(model) {
       if (model === 'generic') {
         const replies = [
-          '好的，请问您的打印机序列号或MAC地址是多少呢？有了这个信息我才能帮您查询具体的维修情况和报价。',
-          '明白了。麻烦您提供一下打印机的序列号（机身标签上的10位数字）或MAC地址，我来帮您查询。',
-          '收到！请告诉我打印机的序列号或MAC地址，我帮您看看维修记录和保修状态。'
+          '好的，请问您的打印机序列号或客户编号是多少呢？有了这个信息我才能帮您查询具体的维修情况和报价。',
+          '明白了。麻烦您提供一下打印机的序列号（机身标签上的10位数字）或客户编号，我来帮您查询。',
+          '收到！请告诉我打印机的序列号或客户编号，我帮您看看维修记录和保修状态。'
         ];
         return pick(replies);
       }
       const replies = [
-        `${model} 是我们支持维修的型号。请问您这台机器的序列号或MAC地址是多少？我帮您查一下维修信息和保修状态。`,
-        `好的，您说的是 ${model} 型号。能告诉我它的序列号或MAC地址吗？我来查询具体的维修记录和报价。`,
-        `${model} 没问题，这个型号我们可以维修。请提供一下序列号或MAC地址，我帮您查看详细信息。`
+        `${model} 是我们支持维修的型号。请问您这台机器的序列号或客户编号是多少？我帮您查一下维修信息和保修状态。`,
+        `好的，您说的是 ${model} 型号。能告诉我它的序列号或客户编号吗？我来查询具体的维修记录和报价。`,
+        `${model} 没问题，这个型号我们可以维修。请提供一下序列号或客户编号，我帮您查看详细信息。`
       ];
       return pick(replies);
     }
 
     function noRecordReply() {
       const replies = [
-        '对不起，您提供的打印机信息未有维修记录。\n\n请核实序列号或MAC地址是否正确。',
-        '抱歉，我在系统中没有找到这台打印机的记录。\n\n请确认您输入的序列号或MAC地址是否准确。',
-        '很抱歉，未能找到该设备的维修记录。\n\n建议您检查一下序列号或MAC地址是否输入正确。'
+        '对不起，您提供的打印机信息未有维修记录。\n\n请核实序列号、客户编号或快递单号是否正确。',
+        '抱歉，我在系统中没有找到这台打印机的记录。\n\n请确认您输入的信息是否准确。',
+        '很抱歉，未能找到该设备的维修记录。\n\n建议您检查一下输入的序列号、客户编号或快递单号是否正确。'
       ];
       return pick(replies);
     }
 
     function unknownReply() {
       const replies = [
-        '抱歉，这个问题我不太了解。\n\n我主要负责打印机维修报价咨询，您可以告诉我打印机的序列号或MAC地址，我来帮您查询。',
-        '不好意思，这个我回答不了。\n\n如果您需要查询打印机维修相关信息，请提供序列号或MAC地址给我。',
-        '抱歉，我不知道。\n\n我是打印机维修报价助手，可以帮您查询维修价格和保修状态。请告诉我您的打印机序列号或MAC地址。'
+        '抱歉，这个问题我不太了解。\n\n我主要负责打印机维修报价咨询，您可以告诉我打印机的序列号、客户编号或快递单号，我来帮您查询。',
+        '不好意思，这个我回答不了。\n\n如果您需要查询打印机维修相关信息，请提供序列号、客户编号或快递单号给我。',
+        '抱歉，我不知道。\n\n我是打印机维修报价助手，可以帮您查询维修价格和保修状态。请告诉我您的打印机序列号、客户编号或快递单号。'
       ];
       return pick(replies);
     }
@@ -606,9 +609,9 @@
 
       if (/^(你好|您好|嗨|hi|hello|哈喽)/i.test(trimmed)) {
         return pick([
-          '您好！请问有什么可以帮您？如需查询维修信息，请告诉我打印机的序列号或MAC地址。',
-          '您好！很高兴为您服务。请提供打印机序列号或MAC地址，我来帮您查询。',
-          'Hi！需要查询打印机维修报价吗？请告诉我序列号或MAC地址。'
+          '您好！请问有什么可以帮您？如需查询维修信息，请告诉我打印机的序列号、客户编号或快递单号。',
+          '您好！很高兴为您服务。请提供打印机序列号、客户编号或快递单号，我来帮您查询。',
+          'Hi！需要查询打印机维修报价吗？请告诉我序列号、客户编号或快递单号。'
         ]);
       }
 
@@ -632,6 +635,19 @@
         return resetSession();
       }
 
+      // 先尝试直接查设备（支持序列号、客户编号、快递单号等任意匹配）
+      const device = getDevice(trimmed);
+      if (device) {
+        sessionState.device = device;
+        sessionState.warrantyStatus = getWarrantyStatus(device);
+        const intro = pick([
+          '好的，我找到了这台打印机的信息：\n\n',
+          '查到了！以下是这台设备的详细信息：\n\n',
+          '已为您查询到相关记录：\n\n'
+        ]);
+        return intro + formatDeviceInfo(device);
+      }
+
       const mentionedModel = detectModel(trimmed);
       if (mentionedModel && !/[0-9]{6,}/.test(trimmed) && !/([0-9A-Fa-f]{2}[:\-]){3,}/.test(trimmed)) {
         sessionState.mentionedModel = mentionedModel;
@@ -646,26 +662,14 @@
         return listAllPrices();
       }
 
-      const device = getDevice(trimmed);
-      if (device) {
-        sessionState.device = device;
-        sessionState.warrantyStatus = getWarrantyStatus(device);
-        const intro = pick([
-          '好的，我找到了这台打印机的信息：\n\n',
-          '查到了！以下是这台设备的详细信息：\n\n',
-          '已为您查询到相关记录：\n\n'
-        ]);
-        return intro + formatDeviceInfo(device);
-      }
-
-      if (/^[0-9]{8,12}$/.test(trimmed) || /^([0-9A-Fa-f]{2}[:\-]?){5}[0-9A-Fa-f]{2}$/.test(trimmed.replace(/\s/g, ''))) {
+      if (/^[0-9]{3,12}$/.test(trimmed) || /^([0-9A-Fa-f]{2}[:\-]?){5}[0-9A-Fa-f]{2}$/.test(trimmed.replace(/\s/g, '')) || /^[A-Za-z0-9]{3,20}$/.test(trimmed)) {
         return noRecordReply();
       }
 
       return pick([
-        '请提供打印机的序列号（10位数字）或MAC地址，我来帮您查询维修信息。',
-        '麻烦告诉我打印机的序列号或MAC地址，这样我才能帮您查询哦。',
-        '需要序列号或MAC地址才能查询。序列号通常在机身标签上，是一串数字。'
+        '请提供打印机的序列号、客户编号或快递单号，我来帮您查询维修信息。',
+        '麻烦告诉我打印机的序列号、客户编号或快递单号，这样我才能帮您查询哦。',
+        '需要序列号、客户编号或快递单号才能查询。序列号通常在机身标签上，是一串数字。'
       ]);
     }
 
