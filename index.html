@@ -368,6 +368,14 @@
     }
 
     function getWarrantyStatus(device) {
+      // 优先使用数据库中已维护的维保选择
+      if (device.warrantyType) {
+        if (device.warrantyType === '新机换新') return 'new';
+        if (device.warrantyType === '保内免费') return 'inWarranty';
+        if (device.warrantyType === '保外收费') return 'outOfWarranty';
+        if (device.warrantyType === '以旧换新') return 'tradeIn';
+      }
+      // 未维护维保选择时，根据购买日期自动判断
       const purchaseDate = parseDate(device.purchaseDate);
       if (!purchaseDate) return 'outOfWarranty';
       const days = daysBetween(purchaseDate, new Date());
@@ -462,8 +470,9 @@
       const status = getWarrantyStatus(device);
 
       let statusTag = '';
-      if (status === 'new') statusTag = '<span class="tag new">15天内 · 新机换新</span>';
+      if (status === 'new') statusTag = '<span class="tag new">新机换新</span>';
       else if (status === 'inWarranty') statusTag = '<span class="tag free">保内 · 免费维修</span>';
+      else if (status === 'tradeIn') statusTag = '<span class="tag new">以旧换新</span>';
       else statusTag = '<span class="tag price">已过保 · 需付费</span>';
 
       let info = `设备信息：\n${device.customerId ? '客户编号：' + device.customerId + '\n' : ''}型号：${device.model || '未知'}\n序列号：${device.sn}\nMAC：${device.mac}\n购买日期：${dateStr}（${days}天前）\n维修状态：${device.repairStatus || '未知'}${device.returnTracking ? '\n寄回快递：' + device.returnTracking : ''}${device.sendTracking ? '\n寄出快递：' + device.sendTracking : ''}\n\n${statusTag}`;
@@ -474,7 +483,9 @@
         if (isFirmwareOnly(device.parts)) {
           info += '\n\n<span class="tag free">无需收费</span>\n\n该打印机只升级了固件，无需维修和收费。';
         } else if (status === 'new') {
-          info += '\n\n好消息！您的设备在新机换新期内（购买15天内），可直接换新机，无需支付任何费用。';
+          info += '\n\n好消息！您的设备符合新机换新条件，可直接换新机，无需支付任何费用。';
+        } else if (status === 'tradeIn') {
+          info += '\n\n您的设备符合以旧换新条件，请联系工作人员办理换新手续。';
         } else if (status === 'inWarranty') {
           info += '\n\n<span class="tag free">维修费用：免费</span>\n\n您的设备在保修期内，以上配件维修不收取费用。';
         } else {
@@ -493,7 +504,9 @@
         }
       } else {
         if (status === 'new') {
-          info += '\n\n您的设备在新机换新期内（购买15天内），可直接换新机，无需维修。';
+          info += '\n\n您的设备符合新机换新条件，可直接换新机，无需维修。';
+        } else if (status === 'tradeIn') {
+          info += '\n\n您的设备符合以旧换新条件，请联系工作人员办理换新手续。';
         } else if (status === 'inWarranty') {
           info += '\n\n您的设备在保修期内，维修免费。如需维修请联系售后。';
         } else {
