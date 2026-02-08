@@ -1823,6 +1823,10 @@
         if (saved) {
           const config = JSON.parse(saved);
           const existingKeys = config.map(c => c.key);
+          // 用最新的 label 覆盖缓存中的旧 label
+          const labelMap = {};
+          ALL_COLUMNS.forEach(col => { labelMap[col.key] = col.label; });
+          config.forEach(c => { if (labelMap[c.key]) c.label = labelMap[c.key]; });
           ALL_COLUMNS.forEach(col => {
             if (!existingKeys.includes(col.key)) config.push({ ...col });
           });
