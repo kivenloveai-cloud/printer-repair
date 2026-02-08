@@ -33,7 +33,8 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 16px;
+      padding: 10px;
+      margin: 0;
     }
 
     .form-group { margin-bottom: 16px; }
@@ -368,14 +369,14 @@
     .admin-panel {
       display: none;
       width: 100%;
-      max-width: 1400px;
-      height: 95vh;
+      max-width: 100%;
+      height: 96vh;
       flex-direction: column;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
     }
     .admin-panel.show { display: flex; }
     .admin-panel .header { flex-shrink: 0; }
@@ -801,7 +802,7 @@
     </header>
 
     <!-- 维修记录 Tab -->
-    <div id="tabDevicesContent">
+    <div id="tabDevicesContent" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
     <div class="filter-bar">
       <div class="filter-item">
         <label>客户编号</label>
@@ -866,12 +867,23 @@
 
     <div class="admin-stats">
       <span id="adminStatsInfo">加载中...</span>
-      <button class="btn btn-secondary" style="font-size:0.75rem;padding:4px 10px;" onclick="exportExcel()">导出Excel</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="btn btn-secondary" style="font-size:0.75rem;padding:4px 8px;" onclick="changePage(-1)" id="prevPageBtn">上一页</button>
+        <span id="pageInfo" style="font-size:0.78rem;white-space:nowrap;">1/1</span>
+        <button class="btn btn-secondary" style="font-size:0.75rem;padding:4px 8px;" onclick="changePage(1)" id="nextPageBtn">下一页</button>
+        <select id="pageSizeSelect" style="font-size:0.75rem;padding:3px 6px;border:1px solid var(--border);border-radius:4px;" onchange="changePageSize()">
+          <option value="20">20条/页</option>
+          <option value="50" selected>50条/页</option>
+          <option value="100">100条/页</option>
+          <option value="200">200条/页</option>
+        </select>
+        <button class="btn btn-secondary" style="font-size:0.75rem;padding:4px 10px;" onclick="exportExcel()">导出Excel</button>
+      </div>
     </div>
     </div><!-- /tabDevicesContent -->
 
     <!-- 人员管理 Tab -->
-    <div id="tabStaffContent" style="display:none;">
+    <div id="tabStaffContent" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
       <div class="table-wrap">
         <table class="admin-table" id="staffTable">
           <thead>
@@ -1358,7 +1370,7 @@
         devicesBtn.classList.remove('active');
         staffBtn.classList.add('active');
         devicesContent.style.display = 'none';
-        staffContent.style.display = 'block';
+        staffContent.style.display = 'flex';
         btnAddDevice.classList.add('hidden');
         btnColSettings.classList.add('hidden');
         btnAddStaff.classList.remove('hidden');
@@ -1367,7 +1379,7 @@
         staffBtn.classList.remove('active');
         devicesBtn.classList.add('active');
         staffContent.style.display = 'none';
-        devicesContent.style.display = 'block';
+        devicesContent.style.display = 'flex';
         btnAddStaff.classList.add('hidden');
         btnAddDevice.classList.remove('hidden');
         btnColSettings.classList.remove('hidden');
@@ -1820,6 +1832,21 @@
     }
 
     let expandedRows = new Set();
+    let currentPage = 1;
+    let pageSize = 50;
+
+    function changePage(delta) {
+      const filtered = getFilteredDevices();
+      const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+      currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
+      refreshAdminTable();
+    }
+
+    function changePageSize() {
+      pageSize = parseInt(document.getElementById('pageSizeSelect').value);
+      currentPage = 1;
+      refreshAdminTable();
+    }
 
     function toggleExpandRow(id) {
       if (expandedRows.has(id)) expandedRows.delete(id);
@@ -1889,13 +1916,19 @@
     function refreshAdminTable() {
       const allDevices = getAllDevices();
       const filtered = getFilteredDevices();
-      const showing = filtered.slice(0, 200);
+      const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const start = (currentPage - 1) * pageSize;
+      const showing = filtered.slice(start, start + pageSize);
       const visCols = getVisibleColumns();
 
       document.getElementById('adminStatsInfo').innerHTML =
         `总计 <strong>${allDevices.length}</strong> 条` +
-        (filtered.length !== allDevices.length ? `，筛选 <strong>${filtered.length}</strong> 条` : '') +
-        (filtered.length > 200 ? `，显示前 200 条` : '');
+        (filtered.length !== allDevices.length ? `，筛选 <strong>${filtered.length}</strong> 条` : '');
+
+      document.getElementById('pageInfo').textContent = `${currentPage}/${totalPages}`;
+      document.getElementById('prevPageBtn').disabled = currentPage <= 1;
+      document.getElementById('nextPageBtn').disabled = currentPage >= totalPages;
 
       const thead = document.querySelector('#adminTable thead tr');
       thead.innerHTML = visCols.map(c => `<th>${c.label}<div class="col-resizer"></div></th>`).join('') + '<th>操作</th>';
@@ -1928,14 +1961,15 @@
       document.getElementById('filterStatus').value = '';
       document.getElementById('filterWarranty').value = '';
       document.getElementById('filterTracking').value = '';
+      currentPage = 1;
       refreshAdminTable();
     }
 
     ['filterCustomerId', 'filterSN', 'filterTracking'].forEach(id => {
-      document.getElementById(id).addEventListener('input', () => refreshAdminTable());
+      document.getElementById(id).addEventListener('input', () => { currentPage = 1; refreshAdminTable(); });
     });
     ['filterModel', 'filterStatus', 'filterWarranty'].forEach(id => {
-      document.getElementById(id).addEventListener('change', () => refreshAdminTable());
+      document.getElementById(id).addEventListener('change', () => { currentPage = 1; refreshAdminTable(); });
     });
 
     window.deleteDeviceUI = async function(id) {
