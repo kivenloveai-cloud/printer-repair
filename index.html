@@ -218,7 +218,6 @@
       </div>
       <div class="quick-asks">
         <button class="quick-btn" data-ask="配件价格">配件价格表</button>
-        <button class="quick-btn" data-ask="重新开始">重新查询</button>
       </div>
     </div>
   </div>
@@ -548,7 +547,7 @@
           s += `· ${part}：¥${total}（配件¥${price.partFee}+人工¥${price.laborFee}）\n`;
         }
       }
-      s += '\n注：单台打印机多配件维修只收一次人工费\n\n如需查询具体设备的维修信息，请提供序列号或MAC地址。';
+      s += '\n注：单台打印机多配件维修只收一次人工费\n\n如需查询具体设备的维修信息，请提供序列号、客户编号或快递单号。';
       return s;
     }
 

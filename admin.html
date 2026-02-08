@@ -1164,6 +1164,29 @@
     let currentLoginName = '';
     let currentUsername = '';
 
+    function saveLoginState() {
+      localStorage.setItem('admin_login', JSON.stringify({
+        isAdmin, currentUserRole, currentUserId, currentLoginName, currentUsername
+      }));
+    }
+    function clearLoginState() {
+      localStorage.removeItem('admin_login');
+    }
+    function restoreLoginState() {
+      try {
+        const s = JSON.parse(localStorage.getItem('admin_login'));
+        if (s && s.isAdmin) {
+          isAdmin = s.isAdmin;
+          currentUserRole = s.currentUserRole;
+          currentUserId = s.currentUserId;
+          currentLoginName = s.currentLoginName;
+          currentUsername = s.currentUsername;
+          return true;
+        }
+      } catch(e) {}
+      return false;
+    }
+
     // ========== 设备数据操作 ==========
     function dbToDevice(d) {
       return {
@@ -2285,6 +2308,7 @@
         currentUserId = user.id;
         currentLoginName = user.username;
         currentUsername = user.name || user.username;
+        saveLoginState();
         updateAdminUI();
       } catch (err) {
         errorEl.textContent = '登录失败：' + (err.message || '网络错误');
@@ -2301,6 +2325,7 @@
         currentUserId = null;
         currentLoginName = '';
         currentUsername = '';
+        clearLoginState();
         switchAdminTab('devices');
         document.getElementById('adminLoginForm').reset();
         document.getElementById('loginError').textContent = '';
@@ -2331,7 +2356,36 @@
       } catch (err) {
         console.error('初始数据加载失败:', err);
       }
-      showLoginPage();
+      // 尝试恢复登录状态，避免每次刷新都要重新登录
+      if (restoreLoginState()) {
+        // 验证登录信息是否仍然有效（用户未被删除/禁用）
+        try {
+          const res = await supabase.from('staff').select('*').eq('id', currentUserId);
+          if (res.data && res.data.length > 0) {
+            updateAdminUI();
+          } else {
+            // 用户已被删除，清除登录状态
+            clearLoginState();
+            isAdmin = false;
+            currentUserRole = '';
+            currentUserId = null;
+            currentLoginName = '';
+            currentUsername = '';
+            showLoginPage();
+          }
+        } catch(e) {
+          // 网络错误时清除登录状态，回到登录页
+          clearLoginState();
+          isAdmin = false;
+          currentUserRole = '';
+          currentUserId = null;
+          currentLoginName = '';
+          currentUsername = '';
+          showLoginPage();
+        }
+      } else {
+        showLoginPage();
+      }
     })();
   </script>
 </body>
