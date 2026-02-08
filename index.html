@@ -687,7 +687,7 @@
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    function send() {
+    async function send() {
       const text = userInput.value.trim();
       if (!text) return;
       const userDiv = document.createElement('div');
@@ -695,6 +695,10 @@
       userDiv.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
       messagesEl.appendChild(userDiv);
       userInput.value = '';
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+
+      // 每次查询前刷新数据，确保是最新状态
+      try { await loadDevicesFromCloud(); } catch(e) { console.warn('数据刷新失败，使用缓存', e); }
 
       setTimeout(() => {
         addBotMessage(getBotResponse(text));
