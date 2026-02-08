@@ -754,7 +754,7 @@
             <div id="editFeeDisplay" style="font-size:0.88rem;padding:7px 0;color:var(--text);font-weight:600;">-</div>
           </div>
           <div class="form-group">
-            <label class="form-label">寄回快递单号</label>
+            <label class="form-label">收到快递单号</label>
             <input type="text" class="form-input" id="editReturnTracking" placeholder="客户寄来的快递单号">
           </div>
           <div class="form-group">
@@ -762,8 +762,8 @@
             <input type="text" class="form-input" id="editSendTracking" placeholder="寄回客户的快递单号">
           </div>
           <div class="form-group" style="grid-column:span 3;">
-            <label class="form-label">寄回地址</label>
-            <input type="text" class="form-input" id="editReturnAddress" placeholder="客户寄回地址">
+            <label class="form-label">客户地址</label>
+            <input type="text" class="form-input" id="editReturnAddress" placeholder="客户客户地址">
           </div>
           <div class="form-group" style="grid-column:span 3;">
             <label class="form-label">故障描述</label>
@@ -1242,7 +1242,7 @@
       customerId: '客户编号', model: '型号', sn: '序列号', mac: 'MAC地址',
       purchaseDate: '购买日期', parts: '需更换配件', repairFee: '需付费',
       warrantyType: '维保选择', repairStatus: '维修状态', registerDate: '登记日期',
-      returnTracking: '寄回快递', sendTracking: '寄出快递', returnAddress: '寄回地址', faultDesc: '故障描述', remark: '备注'
+      returnTracking: '收到快递', sendTracking: '寄出快递', returnAddress: '客户地址', faultDesc: '故障描述', remark: '备注'
     };
 
     function diffDevice(oldD, newD) {
@@ -1811,9 +1811,9 @@
       { key: 'faultDesc', label: '故障描述', visible: true },
       { key: 'repairStatus', label: '维修状态', visible: true },
       { key: 'registerDate', label: '登记日期', visible: true },
-      { key: 'returnTracking', label: '寄回快递', visible: false },
+      { key: 'returnTracking', label: '收到快递', visible: false },
       { key: 'sendTracking', label: '寄出快递', visible: false },
-      { key: 'returnAddress', label: '寄回地址', visible: false },
+      { key: 'returnAddress', label: '客户地址', visible: false },
       { key: 'remark', label: '备注', visible: false },
     ];
 
@@ -1924,12 +1924,12 @@
         { label: '故障描述', value: d.faultDesc },
         { label: '维修状态', value: d.repairStatus },
         { label: '登记日期', value: d.registerDate },
-        { label: '寄回快递', value: d.returnTracking },
+        { label: '收到快递', value: d.returnTracking },
         { label: '寄出快递', value: d.sendTracking },
-        { label: '寄回地址', value: d.returnAddress },
+        { label: '客户地址', value: d.returnAddress },
         { label: '备注', value: d.remark },
       ];
-      const longFields = ['需更换配件', '故障描述', '寄回地址', '备注'];
+      const longFields = ['需更换配件', '故障描述', '客户地址', '备注'];
       return `<div class="expand-content">${allFields.map(f => {
         const isLong = longFields.includes(f.label) && f.value && f.value.length > 20;
         return `<div class="expand-item${isLong ? ' expand-item-full' : ''}"><span class="expand-label">${f.label}：</span><span class="expand-value">${f.value || '-'}</span></div>`;
@@ -2103,7 +2103,7 @@
     function exportExcel() {
       const filtered = getFilteredDevices();
       if (filtered.length === 0) { alert('没有可导出的数据'); return; }
-      const headers = ['客户编号','型号','序列号','MAC地址','购买日期','维保选择','需更换配件','需付费','故障描述','维修状态','登记日期','寄回快递','寄出快递','寄回地址','备注'];
+      const headers = ['客户编号','型号','序列号','MAC地址','购买日期','维保选择','需更换配件','需付费','故障描述','维修状态','登记日期','收到快递','寄出快递','客户地址','备注'];
       const keys = ['customerId','model','sn','mac','purchaseDate','warrantyType','parts','repairFee','faultDesc','repairStatus','registerDate','returnTracking','sendTracking','returnAddress','remark'];
       let csv = '\uFEFF' + headers.join(',') + '\n';
       filtered.forEach(d => {

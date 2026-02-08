@@ -495,7 +495,7 @@
       else if (status === 'tradeIn') statusTag = '<span class="tag new">以旧换新</span>';
       else statusTag = '<span class="tag price">已过保 · 需付费</span>';
 
-      let info = `设备信息：\n${device.customerId ? '客户编号：' + device.customerId + '\n' : ''}型号：${device.model || '未知'}\n序列号：${device.sn}\nMAC：${device.mac}\n购买日期：${dateStr}（${days}天前）\n维修状态：${device.repairStatus || '未知'}${device.returnTracking ? '\n寄回快递：' + device.returnTracking : ''}${device.sendTracking ? '\n寄出快递：' + device.sendTracking : ''}\n\n${statusTag}`;
+      let info = `设备信息：\n${device.customerId ? '客户编号：' + device.customerId + '\n' : ''}型号：${device.model || '未知'}\n序列号：${device.sn}\nMAC：${device.mac}\n购买日期：${dateStr}（${days}天前）\n维修状态：${device.repairStatus || '未知'}${device.returnTracking ? '\n收到快递：' + device.returnTracking : ''}${device.sendTracking ? '\n寄出快递：' + device.sendTracking : ''}\n\n${statusTag}`;
 
       if (device.parts && device.parts.trim()) {
         info += `\n\n需更换配件：${device.parts}`;
