@@ -459,6 +459,49 @@
       transition: all 0.15s;
     }
     .expand-toggle:hover { background: var(--primary); color: #fff; }
+
+    /* 日志条目 */
+    .log-entry {
+      border-left: 3px solid var(--primary);
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      background: var(--bg);
+      border-radius: 0 8px 8px 0;
+      font-size: 0.82rem;
+    }
+    .log-entry.log-add { border-left-color: var(--success); }
+    .log-entry.log-edit { border-left-color: var(--primary); }
+    .log-entry.log-delete { border-left-color: var(--danger); }
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .log-header .log-action {
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+    }
+    .log-add .log-action { background: rgba(22,163,74,0.1); color: var(--success); }
+    .log-edit .log-action { background: var(--primary-soft); color: var(--primary); }
+    .log-delete .log-action { background: rgba(220,38,38,0.1); color: var(--danger); }
+    .log-changes {
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.6;
+    }
+    .log-empty {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 30px 0;
+      font-size: 0.88rem;
+    }
+
     /* 列设置弹窗 */
     .col-settings-overlay {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -663,6 +706,10 @@
             <input type="text" class="form-input" id="editSendTracking" placeholder="寄回客户的快递单号">
           </div>
           <div class="form-group" style="grid-column:span 3;">
+            <label class="form-label">寄回地址</label>
+            <input type="text" class="form-input" id="editReturnAddress" placeholder="客户寄回地址">
+          </div>
+          <div class="form-group" style="grid-column:span 3;">
             <label class="form-label">故障描述</label>
             <input type="text" class="form-input" id="editFaultDesc" placeholder="描述打印机故障情况">
           </div>
@@ -845,6 +892,19 @@
           <button type="submit" class="btn btn-primary">保存</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- 修改日志弹窗 -->
+  <div class="modal-overlay" id="logModal">
+    <div class="modal" style="max-width:620px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="logModalTitle">修改日志</h3>
+        <button class="modal-close" onclick="closeModal('logModal')">&times;</button>
+      </div>
+      <div id="logModalContent" style="max-height:60vh;overflow-y:auto;">
+        <p style="color:var(--text-muted);text-align:center;">加载中...</p>
+      </div>
     </div>
   </div>
 
@@ -1050,6 +1110,7 @@
         repairFee: d.repair_fee || '',
         returnTracking: d.return_tracking || '',
         sendTracking: d.send_tracking || '',
+        returnAddress: d.return_address || '',
         warrantyType: d.warranty_type || '',
         registerDate: d.register_date || '',
         faultDesc: d.fault_desc || '',
@@ -1069,6 +1130,7 @@
         repair_fee: device.repairFee || '',
         return_tracking: device.returnTracking || '',
         send_tracking: device.sendTracking || '',
+        return_address: device.returnAddress || '',
         warranty_type: device.warrantyType || '',
         register_date: device.registerDate || null,
         fault_desc: device.faultDesc || '',
@@ -1085,16 +1147,72 @@
       return devices;
     }
 
+    // 字段中文名映射
+    const FIELD_LABELS = {
+      customerId: '客户编号', model: '型号', sn: '序列号', mac: 'MAC地址',
+      purchaseDate: '购买日期', parts: '需更换配件', repairFee: '需付费',
+      warrantyType: '维保选择', repairStatus: '维修状态', registerDate: '登记日期',
+      returnTracking: '寄回快递', sendTracking: '寄出快递', returnAddress: '寄回地址', faultDesc: '故障描述', remark: '备注'
+    };
+
+    function diffDevice(oldD, newD) {
+      const changes = [];
+      for (const key of Object.keys(FIELD_LABELS)) {
+        const o = (oldD[key] || '').toString().trim();
+        const n = (newD[key] || '').toString().trim();
+        if (o !== n) {
+          changes.push(`${FIELD_LABELS[key]}：「${o || '空'}」→「${n || '空'}」`);
+        }
+      }
+      return changes;
+    }
+
+    async function saveDeviceLog(deviceId, action, changes) {
+      try {
+        await supabase.from('device_logs').insert([{
+          device_id: deviceId,
+          operator: currentLoginName || '',
+          operator_name: currentUsername || '',
+          action: action,
+          changes: changes
+        }]);
+      } catch (e) {
+        console.warn('日志记录失败:', e);
+      }
+    }
+
     async function saveDevice(device, isEdit) {
       try {
         const row = deviceToDb(device);
         let res;
+        let oldDevice = null;
         if (isEdit && device.id) {
+          oldDevice = devices.find(d => d.id === device.id);
           res = await supabase.from('devices').update(row).eq('id', device.id);
         } else {
           res = await supabase.from('devices').insert([row]);
         }
         if (res.error) throw res.error;
+
+        // 记录日志
+        if (isEdit && oldDevice) {
+          const changes = diffDevice(oldDevice, device);
+          if (changes.length > 0) {
+            await saveDeviceLog(device.id, 'edit', changes.join('\n'));
+          }
+        } else if (!isEdit && res.data && res.data[0]) {
+          const now = new Date().toLocaleString('zh-CN');
+          const summary = [
+            device.customerId ? `客户编号：${device.customerId}` : '',
+            device.model ? `型号：${device.model}` : '',
+            device.sn ? `序列号：${device.sn}` : '',
+            device.mac ? `MAC：${device.mac}` : '',
+            device.parts ? `配件：${device.parts}` : '',
+            device.repairStatus ? `状态：${device.repairStatus}` : ''
+          ].filter(Boolean).join('\n');
+          await saveDeviceLog(res.data[0].id, 'add', `新增时间：${now}\n${summary}`);
+        }
+
         await loadDevicesFromCloud();
         return true;
       } catch (err) {
@@ -1128,8 +1246,13 @@
 
     async function deleteDevice(id) {
       try {
+        const device = devices.find(d => d.id === id);
         const res = await supabase.from('devices').delete().eq('id', id);
         if (res.error) throw res.error;
+        // 记录删除日志
+        if (device) {
+          await saveDeviceLog(id, 'delete', `删除记录：SN=${device.sn || '空'}, 型号=${device.model || '空'}, 客户=${device.customerId || '空'}`);
+        }
         const idx = devices.findIndex(d => d.id === id);
         if (idx >= 0) devices.splice(idx, 1);
         return true;
@@ -1404,6 +1527,7 @@
         document.getElementById('editRegisterDate').value = d.registerDate || '';
         document.getElementById('editReturnTracking').value = d.returnTracking || '';
         document.getElementById('editSendTracking').value = d.sendTracking || '';
+        document.getElementById('editReturnAddress').value = d.returnAddress || '';
         document.getElementById('editFaultDesc').value = d.faultDesc || '';
         document.getElementById('editRemark').value = d.remark || '';
         renderPartsSelect(d.model, d.parts);
@@ -1458,6 +1582,7 @@
         registerDate: document.getElementById('editRegisterDate').value,
         returnTracking: document.getElementById('editReturnTracking').value.trim(),
         sendTracking: document.getElementById('editSendTracking').value.trim(),
+        returnAddress: document.getElementById('editReturnAddress').value.trim(),
         faultDesc: document.getElementById('editFaultDesc').value.trim(),
         remark: document.getElementById('editRemark').value.trim()
       };
@@ -1598,6 +1723,7 @@
       { key: 'registerDate', label: '登记日期', visible: true },
       { key: 'returnTracking', label: '寄回快递', visible: false },
       { key: 'sendTracking', label: '寄出快递', visible: false },
+      { key: 'returnAddress', label: '寄回地址', visible: false },
       { key: 'remark', label: '备注', visible: false },
     ];
 
@@ -1646,6 +1772,40 @@
       refreshAdminTable();
     }
 
+    async function openDeviceLog(deviceId) {
+      const content = document.getElementById('logModalContent');
+      const device = devices.find(d => d.id === deviceId);
+      const title = device ? `修改日志 - ${device.sn || device.customerId || 'ID:' + deviceId}` : '修改日志';
+      document.getElementById('logModalTitle').textContent = title;
+      content.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">加载中...</p>';
+      openModal('logModal');
+
+      try {
+        const res = await supabase.from('device_logs').select('*').eq('device_id', deviceId).order('created_at', { ascending: false });
+        if (res.error) throw res.error;
+        const logs = res.data || [];
+        if (logs.length === 0) {
+          content.innerHTML = '<div class="log-empty">暂无修改记录</div>';
+          return;
+        }
+        content.innerHTML = logs.map(log => {
+          const actionMap = { add: '新增', edit: '修改', delete: '删除' };
+          const actionText = actionMap[log.action] || log.action;
+          const time = new Date(log.created_at).toLocaleString('zh-CN');
+          const operator = log.operator_name || log.operator || '未知';
+          return `<div class="log-entry log-${log.action}">
+            <div class="log-header">
+              <span><span class="log-action">${actionText}</span> 操作人：${operator}</span>
+              <span>${time}</span>
+            </div>
+            <div class="log-changes">${log.changes || '-'}</div>
+          </div>`;
+        }).join('');
+      } catch (err) {
+        content.innerHTML = `<p style="color:var(--danger);text-align:center;padding:20px;">加载失败：${err.message || '网络错误'}</p>`;
+      }
+    }
+
     function renderExpandContent(d) {
       const allFields = [
         { label: '客户编号', value: d.customerId },
@@ -1661,9 +1821,10 @@
         { label: '登记日期', value: d.registerDate },
         { label: '寄回快递', value: d.returnTracking },
         { label: '寄出快递', value: d.sendTracking },
+        { label: '寄回地址', value: d.returnAddress },
         { label: '备注', value: d.remark },
       ];
-      const longFields = ['需更换配件', '故障描述', '备注'];
+      const longFields = ['需更换配件', '故障描述', '寄回地址', '备注'];
       return `<div class="expand-content">${allFields.map(f => {
         const isLong = longFields.includes(f.label) && f.value && f.value.length > 20;
         return `<div class="expand-item${isLong ? ' expand-item-full' : ''}"><span class="expand-label">${f.label}：</span><span class="expand-value">${f.value || '-'}</span></div>`;
@@ -1692,6 +1853,7 @@
             <div class="action-btns">
               <span class="expand-toggle" onclick="toggleExpandRow(${d.id})">${isExpanded ? '▲ 收起' : '▼ 展开'}</span>
               <button class="action-btn" onclick="openEditForm('edit',${d.id})">编辑</button>
+              <button class="action-btn" onclick="openDeviceLog(${d.id})" style="color:var(--warning);">日志</button>
               <button class="action-btn del" onclick="deleteDeviceUI(${d.id})">删除</button>
             </div>
           </td>
@@ -1829,8 +1991,8 @@
     function exportExcel() {
       const filtered = getFilteredDevices();
       if (filtered.length === 0) { alert('没有可导出的数据'); return; }
-      const headers = ['客户编号','型号','序列号','MAC地址','购买日期','维保选择','需更换配件','需付费','故障描述','维修状态','登记日期','寄回快递','寄出快递','备注'];
-      const keys = ['customerId','model','sn','mac','purchaseDate','warrantyType','parts','repairFee','faultDesc','repairStatus','registerDate','returnTracking','sendTracking','remark'];
+      const headers = ['客户编号','型号','序列号','MAC地址','购买日期','维保选择','需更换配件','需付费','故障描述','维修状态','登记日期','寄回快递','寄出快递','寄回地址','备注'];
+      const keys = ['customerId','model','sn','mac','purchaseDate','warrantyType','parts','repairFee','faultDesc','repairStatus','registerDate','returnTracking','sendTracking','returnAddress','remark'];
       let csv = '\uFEFF' + headers.join(',') + '\n';
       filtered.forEach(d => {
         csv += keys.map(k => {
