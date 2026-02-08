@@ -1415,7 +1415,12 @@
         renderPartsSelect(document.getElementById('editModel').value, '');
       }
       openModal('editModal');
-      document.getElementById('editPurchaseDate').dispatchEvent(new Event('change'));
+      // 仅新增时自动计算维保选择，编辑时保留已有的维保选择
+      if (mode !== 'edit') {
+        document.getElementById('editPurchaseDate').dispatchEvent(new Event('change'));
+      } else {
+        updatePartsAndFee();
+      }
     }
 
     document.getElementById('editModel').addEventListener('change', function() {
